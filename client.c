@@ -8,8 +8,7 @@
 int clientfd;
 
 typedef struct entete {
-    uint16_t codereq : 5 ;
-    uint16_t id : 11;
+    uint16_t val;
 } entete;
 
 typedef struct inscription_message {
@@ -38,11 +37,22 @@ void testMalloc(void *ptr){
     }
 }
 
+void print_bits(uint16_t n){
+    for (int i = 15; i >= 0; i--) {
+        uint16_t mask = 1 << i;
+        uint16_t bit = (n & mask) >> i;
+
+        printf("%u", bit);
+    }
+    printf("\n");
+}
+
 entete* create_entete(uint8_t codereq, uint16_t id) {
-    //TODO make sure it's big endian...
     entete* entete = malloc(sizeof(entete));
-    entete->codereq = (codereq & 0x1F) << 3; // keep only the 5 least significant bits of codereq
-    entete->id = htons(id) >> 5;
+    entete->val = id;
+    entete->val = entete->val << 5;
+    entete->val = entete->val | codereq;
+    entete->val = htons(entete->val);
 
     return entete;
 }
@@ -87,14 +97,14 @@ void send_inscription(inscription *i){
         perror("erreur ecriture");
         exit(3);
     }
-    printf("demande d'inscription envoyée");
+    printf("demande d'inscription envoyée\n");
 
     char server_msg[3];
     memset(server_msg,0,3);
 
     //*** reception d'un message ***
     int recu = recv(clientfd, server_msg,3, 0);
-    printf("retour du serveur reçu");
+    printf("retour du serveur reçu\n");
     if (recu < 0){
         perror("erreur lecture");
         exit(4);
@@ -103,7 +113,9 @@ void send_inscription(inscription *i){
         printf("serveur off\n");
         exit(0);
     }
-    printf("%s\n",server_msg);
+    print_bits(ntohs((uint16_t) server_msg[0]));
+    print_bits(ntohs((uint16_t) server_msg[1]));
+    print_bits(ntohs((uint16_t) server_msg[2]));
 }
 
 void client(){
@@ -118,7 +130,7 @@ void client(){
     memset(&address_sock, 0,sizeof(address_sock));
     address_sock.sin_family = AF_INET;
     address_sock.sin_port = htons(7777);
-    inet_pton(AF_INET, "192.168.70.237", &address_sock.sin_addr);
+    inet_pton(AF_INET, "localhost", &address_sock.sin_addr);
 
     //*** demande de connexion au serveur ***
     int r = connect(fdsock, (struct sockaddr *) &address_sock, sizeof(address_sock));
@@ -130,25 +142,73 @@ void client(){
     clientfd=fdsock;
 }
 
+void print_ascii(){
+    printf("  ------------------------------------------------------------  \n"
+           " |                                                            |\n"
+           " |    __  __                        _                         |\n"
+           " |   |  \\/  |                      | |                        |\n"
+           " |   | \\  / | ___  __ _  __ _ _ __ | |__   ___  _ __   ___    |\n"
+           " |   | |\\/| |/ _ \\/ _` |/ _` | '_ \\| '_ \\ / _ \\| '_ \\ / _ \\   |\n"
+           " |   | |  | |  __/ (_| | (_| | |_) | | | | (_) | | | |  __/   |\n"
+           " |   |_|  |_|\\___|\\__, |\\__,_| .__/|_| |_|\\___/|_| |_|\\___|   |\n"
+           " |                 __/ |     | |                              |\n"
+           " |                |___/      |_|                              |\n"
+           " |                                                            |\n"
+           " |                                                            |\n"
+           " |               1 - Inscription                              |\n"
+           " |               2 - Poster un billet                         |\n"
+           " |               3 - Liste des n dernier billets              |\n"
+           " |               4 - S'abonner à un fil                       |\n"
+           " |               5 - Ajouter un fichier                       |\n"
+           " |               6 - Télécharger un fichier                   |\n"
+           " |                                                            |\n"
+           "  ------------------------------------------------------------\n"
+           "                                                  \n"
+           "                                                  \n");
+    printf("Entrez un chiffre:\n");
+}
 
 void test(){
-    //struct entete entete;
-    // printf("%ld \n",sizeof(entete)); // 2 octets
-
     char pseudo[]="testlucas";
     inscription *i=create_inscription(pseudo);
 
     send_inscription(i);
 
     // printf("%d %d %s \n",i->entete.codereq,i->entete.id,i->pseudo); // 1 0 test######
+}
 
-    // print_inscription_bits(i);
 
+void run(){
+    char input[50];
+    long choice;
+    char *endptr;
+
+    fgets(input, 50, stdin);
+    choice = strtol(input, &endptr, 10);
+
+    if (endptr == input || *endptr != '\n') {
+        printf("Invalid input\n");
+        exit(1);
+    }
+
+    client();
+    switch(choice){
+        case 1:
+            test();
+            break;
+        case 2:
+        case 3:
+        case 4:
+        case 5:
+        case 6:
+        default:
+            exit(0);
+    }
+    close(clientfd);
 }
 
 int main(void){
-    client();
-    test();
-    close(clientfd);
+    print_ascii();
+    run();
     return 0;
 }
