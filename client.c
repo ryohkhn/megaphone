@@ -156,8 +156,8 @@ void request_n_tickets(res_inscription* i,char* data, int nbfil, int n){
 
   //TODO use id
   msg->entete.val=create_entete(3,66)->val;
-  msg->numfil = nbfil;
-  msg->nb = n;
+  msg->numfil = 0;
+  msg->nb = 0;
   msg->data = malloc(sizeof(uint8_t)*2);
   *msg->data=0;
 
@@ -182,9 +182,10 @@ void request_n_tickets(res_inscription* i,char* data, int nbfil, int n){
       printf("serveur off\n");
       exit(0);
   }
-  for(int i = 0; i < 20; i++){
+  for(int i = 0; i < 1024/16; i++){
     print_bits(ntohs((uint16_t) server_msg[i]));
   }
+  //printf("Test: %s\n",server_msg[0]);
 }
 
 res_inscription* send_inscription(inscription *i){
