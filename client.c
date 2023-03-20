@@ -43,11 +43,12 @@ void testMalloc(void *ptr){
 
 void print_8bits(uint8_t n){
     for (int i = 0; i <= 7; i++) {
-        uint16_t mask = 1 << i;
-        uint16_t bit = (n & mask) >> i;
+        uint8_t mask = 1 << i;
+        uint8_t bit = (n & mask) >> i;
 
         printf("%u", bit);
     }
+    printf(" = %c\n",n);
 }
 
 void print_bits(uint16_t n){
@@ -118,8 +119,8 @@ void send_message(res_inscription* i,char* data){
     print_bits(msg->numfil);
     print_bits(msg->nb);
     for(int j=0; j<=datalen+1; ++j){
-        print_8bits(msg->data[j]);
-        if(j%2==1) printf("\n");
+        if(j!=0)
+            print_8bits(msg->data[j]);
     }
 }
 
