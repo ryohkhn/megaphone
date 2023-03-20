@@ -107,7 +107,7 @@ void print_inscription_bits(inscription* msg) {
 
 void send_message(res_inscription* i,char* data, int nbfil){
     client_message* msg=malloc(sizeof(client_message));
-    msg->entete.val=create_entete(2,i->id)->val;
+    msg->entete.val=create_entete(2,66)->val;
     msg->nb=nbfil;
     uint8_t datalen=strlen(data);
     msg->data=malloc(sizeof(uint8_t)*((datalen)+1));
@@ -121,6 +121,31 @@ void send_message(res_inscription* i,char* data, int nbfil){
     for(int j=0; j<=datalen+1; ++j){
         if(j!=0)
             print_8bits(msg->data[j]);
+    }
+
+    int ecrit = send(clientfd, msg, sizeof(msg), 0);
+    if(ecrit <= 0){
+        perror("erreur ecriture");
+        exit(3);
+    }
+    printf("message envoyé\n");
+
+    //*** reception d'un message ***
+    uint16_t* server_msg = malloc(sizeof(uint8_t)*((datalen)+1));
+    memset(server_msg,0,sizeof(uint8_t)*((datalen)+1));
+
+    int recu = recv(clientfd, server_msg,sizeof(uint8_t)*((datalen)+1), 0);
+    printf("retour du serveur reçu\n");
+    if (recu < 0){
+        perror("erreur lecture");
+        exit(4);
+    }
+    if (recu == 0){
+        printf("serveur off\n");
+        exit(0);
+    }
+    for(int i = 0; i < 3; i++){
+      print_bits(ntohs((uint16_t) server_msg[i]));
     }
 }
 
@@ -146,13 +171,16 @@ res_inscription* send_inscription(inscription *i){
         printf("serveur off\n");
         exit(0);
     }
-    print_bits(ntohs((uint16_t) server_msg[0]));
-    // print_bits(ntohs((uint16_t) server_msg[1]));
-    // print_bits(ntohs((uint16_t) server_msg[2]));
+
+    for(int i = 0; i < 3; i++){
+      print_bits(ntohs((uint16_t) server_msg[i]));
+    }
 
     res_inscription* res=malloc(sizeof(res_inscription));
     res->id=(ntohs(server_msg[0]))>>5;
     print_bits(res->id);
+
+    return res;
 }
 
 void client(){
@@ -229,7 +257,7 @@ void run(){
 
     char *reponse=malloc(1024*sizeof(char));
     int nbfil=0;
-    res_inscription* truc;
+    res_inscription* truc = malloc(sizeof(res_inscription));
 
     switch(choice){
         case 1:
