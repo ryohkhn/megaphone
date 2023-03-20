@@ -107,8 +107,10 @@ void print_inscription_bits(inscription* msg) {
 
 void send_message(res_inscription* i,char* data, int nbfil){
     client_message* msg=malloc(sizeof(client_message));
+
+    //TODO use id
     msg->entete.val=create_entete(2,66)->val;
-    msg->nb=nbfil;
+    msg->numfil=nbfil;
     uint8_t datalen=strlen(data);
     msg->data=malloc(sizeof(uint8_t)*((datalen)+1));
 
@@ -147,6 +149,42 @@ void send_message(res_inscription* i,char* data, int nbfil){
     for(int i = 0; i < 3; i++){
       print_bits(ntohs((uint16_t) server_msg[i]));
     }
+}
+
+void request_n_tickets(res_inscription* i,char* data, int nbfil, int n){
+  client_message* msg=malloc(sizeof(client_message));
+
+  //TODO use id
+  msg->entete.val=create_entete(3,66)->val;
+  msg->numfil = nbfil;
+  msg->nb = n;
+  msg->data = malloc(sizeof(uint8_t)*2);
+  *msg->data=0;
+
+  int ecrit = send(clientfd, msg, sizeof(msg), 0);
+  if(ecrit <= 0){
+      perror("erreur ecriture");
+      exit(3);
+  }
+  printf("message envoyé\n");
+
+  //*** reception d'un message ***
+  uint16_t* server_msg = malloc(sizeof(uint8_t)*1024);
+  memset(server_msg,0,sizeof(uint8_t)*1024);
+
+  int recu = recv(clientfd, server_msg,sizeof(uint8_t)*1024, 0);
+  printf("retour du serveur reçu\n");
+  if (recu < 0){
+      perror("erreur lecture");
+      exit(4);
+  }
+  if (recu == 0){
+      printf("serveur off\n");
+      exit(0);
+  }
+  for(int i = 0; i < 20; i++){
+    print_bits(ntohs((uint16_t) server_msg[i]));
+  }
 }
 
 res_inscription* send_inscription(inscription *i){
@@ -257,6 +295,7 @@ void run(){
 
     char *reponse=malloc(1024*sizeof(char));
     int nbfil=0;
+    int n=0;
     res_inscription* truc = malloc(sizeof(res_inscription));
 
     switch(choice){
@@ -275,6 +314,14 @@ void run(){
             send_message(truc,reponse, nbfil);
             break;
         case 3:
+            printf("Please enter the thread: ");
+            scanf("%d",&nbfil);
+
+            printf("Please enter the number of posts: ");
+            scanf("%d",&n);
+
+            request_n_tickets(truc,"", nbfil,n);
+        break;
         case 4:
         case 5:
         case 6:
