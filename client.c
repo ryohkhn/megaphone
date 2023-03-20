@@ -38,7 +38,7 @@ void testMalloc(void *ptr){
 }
 
 void print_bits(uint16_t n){
-    for (int i = 15; i >= 0; i--) {
+    for (int i = 0; i <= 15; i++) {
         uint16_t mask = 1 << i;
         uint16_t bit = (n & mask) >> i;
 
@@ -101,9 +101,6 @@ void send_inscription(inscription *i){
 
     uint16_t server_msg[3];
     memset(server_msg,0,3*sizeof(uint16_t));
-    print_bits(ntohs((uint16_t) server_msg[0]));
-    print_bits(ntohs((uint16_t) server_msg[1]));
-    print_bits(ntohs((uint16_t) server_msg[2]));
 
     //*** reception d'un message ***
     int recu = recv(clientfd, server_msg,3*sizeof(uint16_t), 0);
@@ -195,16 +192,29 @@ void run(){
     }
 
     client();
+    
+    char* reponse = malloc(1024*sizeof(char));
+    int nbfil = 0;
+
     switch(choice){
         case 1:
-            test();
-            break;
+          test();
+          break;
         case 2:
+          printf("Please enter the thread (0 for a new thread): ");
+          scanf("%d",&nbfil);
+
+          printf("Message to post: ");
+          scanf("%s",reponse);
+
+          printf("NBFIL: %d\nInput: %s\n",nbfil,reponse);
+          break;
         case 3:
         case 4:
         case 5:
         case 6:
         default:
+
             exit(0);
     }
     close(clientfd);
