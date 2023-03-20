@@ -11,18 +11,21 @@ typedef struct entete {
     uint16_t val;
 } entete;
 
+typedef struct res_inscription{
+    uint16_t id;
+} res_inscription;
+
 typedef struct inscription_message {
     entete entete;
     char pseudo[10];
 } inscription;
 
-struct client_message {
+typedef struct client_message {
     entete entete;
     uint16_t numfil;
     uint16_t nb;
-    uint16_t datalen;
-    char data[];
-};
+    uint16_t* data;
+} client_message;
 
 typedef struct server_message{
     entete entete;
@@ -91,7 +94,27 @@ void print_inscription_bits(inscription* msg) {
     printf("\n");
 }
 
-void send_inscription(inscription *i){
+void send_message(res_inscription* i,char* data){
+    client_message* msg=malloc(sizeof(client_message));
+    msg->entete.val=create_entete(2,i->id)->val;
+    msg->nb=0;
+    uint8_t datalen=strlen(data);
+    msg->data=malloc(sizeof(uint16_t)*(datalen+1));
+    msg->data[0]=msg->data[0] << 8;
+
+    memcpy(msg->data,data,sizeof(char));
+    *msg->data=msg->data[0] | datalen;
+    memcpy(msg->data+1,data,sizeof(char)*(datalen-1));
+
+    print_bits(msg->entete.val);
+    print_bits(msg->numfil);
+    print_bits(msg->nb);
+    for(int j=0; j<datalen; ++j){
+        print_bits(msg->data[j]);
+    }
+}
+
+res_inscription* send_inscription(inscription *i){
     int ecrit = send(clientfd, i, 12, 0);
     if(ecrit <= 0){
         perror("erreur ecriture");
@@ -114,8 +137,12 @@ void send_inscription(inscription *i){
         exit(0);
     }
     print_bits(ntohs((uint16_t) server_msg[0]));
-    print_bits(ntohs((uint16_t) server_msg[1]));
-    print_bits(ntohs((uint16_t) server_msg[2]));
+    // print_bits(ntohs((uint16_t) server_msg[1]));
+    // print_bits(ntohs((uint16_t) server_msg[2]));
+
+    res_inscription* res=malloc(sizeof(res_inscription));
+    res->id=(ntohs(server_msg[0]))>>5;
+    print_bits(res->id);
 }
 
 void client(){
