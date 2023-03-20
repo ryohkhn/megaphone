@@ -99,11 +99,14 @@ void send_inscription(inscription *i){
     }
     printf("demande d'inscription envoyée\n");
 
-    char server_msg[3];
-    memset(server_msg,0,3);
+    uint16_t server_msg[3];
+    memset(server_msg,0,3*sizeof(uint16_t));
+    print_bits(ntohs((uint16_t) server_msg[0]));
+    print_bits(ntohs((uint16_t) server_msg[1]));
+    print_bits(ntohs((uint16_t) server_msg[2]));
 
     //*** reception d'un message ***
-    int recu = recv(clientfd, server_msg,3, 0);
+    int recu = recv(clientfd, server_msg,3*sizeof(uint16_t), 0);
     printf("retour du serveur reçu\n");
     if (recu < 0){
         perror("erreur lecture");
