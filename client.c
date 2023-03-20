@@ -106,7 +106,7 @@ void send_message(res_inscription* i,char* data){
     *msg->data=msg->data[0] | datalen;
     memcpy(msg->data+1,data,sizeof(char)*(datalen-1));
 
-    print_bits(msg->entete.val);
+    print_bits(ntohs(msg->entete.val));
     print_bits(msg->numfil);
     print_bits(msg->nb);
     for(int j=0; j<datalen; ++j){
@@ -195,13 +195,10 @@ void print_ascii(){
     printf("Entrez un chiffre:\n");
 }
 
-void test(){
+res_inscription* test(){
     char pseudo[]="testlucas";
     inscription *i=create_inscription(pseudo);
-
-    send_inscription(i);
-
-    // printf("%d %d %s \n",i->entete.codereq,i->entete.id,i->pseudo); // 1 0 test######
+    return send_inscription(i);
 }
 
 
@@ -210,32 +207,35 @@ void run(){
     long choice;
     char *endptr;
 
-    fgets(input, 50, stdin);
-    choice = strtol(input, &endptr, 10);
+    fgets(input,50,stdin);
+    choice=strtol(input,&endptr,10);
 
-    if (endptr == input || *endptr != '\n') {
+    if(endptr==input || *endptr!='\n'){
         printf("Invalid input\n");
         exit(1);
     }
 
     client();
-    
-    char* reponse = malloc(1024*sizeof(char));
-    int nbfil = 0;
+
+    char *reponse=malloc(1024*sizeof(char));
+    int nbfil=0;
+    res_inscription* truc;
 
     switch(choice){
         case 1:
-          test();
-          break;
+            truc=test();
+            break;
         case 2:
-          printf("Please enter the thread (0 for a new thread): ");
-          scanf("%d",&nbfil);
+            printf("Please enter the thread (0 for a new thread): ");
+            scanf("%d",&nbfil);
 
-          printf("Message to post: ");
-          scanf("%s",reponse);
+            printf("Message to post: ");
+            scanf("%s",reponse);
 
-          printf("NBFIL: %d\nInput: %s\n",nbfil,reponse);
-          break;
+            printf("NBFIL: %d\nInput: %s\n",nbfil,reponse);
+
+            send_message(truc,reponse);
+            break;
         case 3:
         case 4:
         case 5:
