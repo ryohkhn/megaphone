@@ -105,10 +105,10 @@ void print_inscription_bits(inscription* msg) {
     printf("\n");
 }
 
-void send_message(res_inscription* i,char* data){
+void send_message(res_inscription* i,char* data, int nbfil){
     client_message* msg=malloc(sizeof(client_message));
     msg->entete.val=create_entete(2,i->id)->val;
-    msg->nb=0;
+    msg->nb=nbfil;
     uint8_t datalen=strlen(data);
     msg->data=malloc(sizeof(uint8_t)*((datalen)+1));
 
@@ -244,7 +244,7 @@ void run(){
 
             printf("NBFIL: %d\nInput: %s\n",nbfil,reponse);
 
-            send_message(truc,reponse);
+            send_message(truc,reponse, nbfil);
             break;
         case 3:
         case 4:
