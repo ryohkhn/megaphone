@@ -7,7 +7,7 @@
 
 int clientfd;
 
-typedef struct entete {
+typedef struct entete{
     uint16_t val;
 } entete;
 
@@ -15,23 +15,23 @@ typedef struct res_inscription{
     uint16_t id;
 } res_inscription;
 
-typedef struct inscription_message {
+typedef struct inscription_message{
     entete entete;
     char pseudo[10];
 } inscription;
 
-typedef struct client_message {
+typedef struct client_message{
     entete entete;
     uint16_t numfil;
     uint16_t nb;
-    uint8_t * data;
+    uint8_t *data;
 } client_message;
 
 typedef struct server_message{
     entete entete;
     uint16_t numfil;
     uint16_t nb;
-}server_message;
+} server_message;
 
 void testMalloc(void *ptr){
     if(ptr==NULL){
@@ -42,31 +42,31 @@ void testMalloc(void *ptr){
 
 
 void print_8bits(uint8_t n){
-    for (int i = 0; i <= 7; i++) {
-        uint8_t mask = 1 << i;
-        uint8_t bit = (n & mask) >> i;
+    for(int i=0; i<=7; i++){
+        uint8_t mask=1<<i;
+        uint8_t bit=(n & mask)>>i;
 
-        printf("%u", bit);
+        printf("%u",bit);
     }
     printf(" = %c\n",n);
 }
 
 void print_bits(uint16_t n){
-    for (int i = 0; i <= 15; i++) {
-        uint16_t mask = 1 << i;
-        uint16_t bit = (n & mask) >> i;
+    for(int i=0; i<=15; i++){
+        uint16_t mask=1<<i;
+        uint16_t bit=(n & mask)>>i;
 
-        printf("%u", bit);
+        printf("%u",bit);
     }
     printf("\n");
 }
 
-entete* create_entete(uint8_t codereq, uint16_t id) {
-    entete* entete = malloc(sizeof(entete));
-    entete->val = id;
-    entete->val = entete->val << 5;
-    entete->val = entete->val | codereq;
-    entete->val = htons(entete->val);
+entete *create_entete(uint8_t codereq,uint16_t id){
+    entete* entete=malloc(sizeof(struct entete));
+    entete->val=id;
+    entete->val=entete->val<<5;
+    entete->val=entete->val | codereq;
+    entete->val=htons(entete->val);
 
     return entete;
 }
@@ -94,19 +94,19 @@ inscription *create_inscription(char pseudo[]){
     return inscription_message;
 }
 
-void print_inscription_bits(inscription* msg) {
-    uint8_t* bytes = (uint8_t*) msg;
-    for (size_t i = 0; i < sizeof(inscription); i++) {
-        for (int j = 7; j >= 0; j--) {
-            printf("%d", (bytes[i] >> j) & 1);
+void print_inscription_bits(inscription *msg){
+    uint8_t *bytes=(uint8_t *) msg;
+    for(size_t i=0; i<sizeof(inscription); i++){
+        for(int j=7; j>=0; j--){
+            printf("%d",(bytes[i]>>j) & 1);
         }
         printf(" ");
     }
     printf("\n");
 }
 
-void send_message(res_inscription* i,char* data, int nbfil){
-    client_message* msg=malloc(sizeof(client_message));
+void send_message(res_inscription *i,char *data,int nbfil){
+    client_message *msg=malloc(sizeof(client_message));
 
     //TODO use id
     msg->entete.val=create_entete(2,66)->val;
@@ -125,72 +125,72 @@ void send_message(res_inscription* i,char* data, int nbfil){
             print_8bits(msg->data[j]);
     }
 
-    int ecrit = send(clientfd, msg, sizeof(msg), 0);
-    if(ecrit <= 0){
+    ssize_t ecrit=send(clientfd,msg,sizeof(msg->entete)+sizeof(uint16_t)*2+sizeof(uint8_t)*(datalen+1),0);
+    if(ecrit<=0){
         perror("erreur ecriture");
         exit(3);
     }
     printf("message envoyé\n");
 
     //*** reception d'un message ***
-    uint16_t* server_msg = malloc(sizeof(uint8_t)*((datalen)+1));
+    uint16_t *server_msg=malloc(sizeof(uint8_t)*((datalen)+1));
     memset(server_msg,0,sizeof(uint8_t)*((datalen)+1));
 
-    int recu = recv(clientfd, server_msg,sizeof(uint8_t)*((datalen)+1), 0);
+    ssize_t recu=recv(clientfd,server_msg,sizeof(uint8_t)*((datalen)+1),0);
     printf("retour du serveur reçu\n");
-    if (recu < 0){
+    if(recu<0){
         perror("erreur lecture");
         exit(4);
     }
-    if (recu == 0){
+    if(recu==0){
         printf("serveur off\n");
         exit(0);
     }
-    for(int i = 0; i < 3; i++){
-      print_bits(ntohs((uint16_t) server_msg[i]));
+    for(int i=0; i<3; i++){
+        print_bits(ntohs((uint16_t) server_msg[i]));
     }
 }
 
-void request_n_tickets(res_inscription* i,char* data, int nbfil, int n){
-  client_message* msg=malloc(sizeof(client_message));
+void request_n_tickets(res_inscription *i,char *data,int nbfil,int n){
+    client_message *msg=malloc(sizeof(client_message));
 
-  //TODO use id
-  msg->entete.val=create_entete(3,66)->val;
-  msg->numfil = 0;
-  msg->nb = 0;
-  msg->data = malloc(sizeof(uint8_t)*2);
-  *msg->data=0;
+    //TODO use id
+    msg->entete.val=create_entete(3,66)->val;
+    msg->numfil=0;
+    msg->nb=0;
+    msg->data=malloc(sizeof(uint8_t)*2);
+    *msg->data=0;
 
-  int ecrit = send(clientfd, msg, sizeof(msg), 0);
-  if(ecrit <= 0){
-      perror("erreur ecriture");
-      exit(3);
-  }
-  printf("message envoyé\n");
+    ssize_t ecrit=send(clientfd,msg,sizeof(msg->entete)+sizeof(uint16_t)*2+sizeof(uint8_t)*2,0);
+    if(ecrit<=0){
+        perror("erreur ecriture");
+        exit(3);
+    }
+    printf("message envoyé\n");
 
-  //*** reception d'un message ***
-  uint16_t* server_msg = malloc(sizeof(uint8_t)*1024);
-  memset(server_msg,0,sizeof(uint8_t)*1024);
+    //*** reception d'un message ***
+    uint16_t *server_msg=malloc(sizeof(uint16_t)*1024);
+    memset(server_msg,0,sizeof(uint16_t)*1024);
 
-  int recu = recv(clientfd, server_msg,sizeof(uint8_t)*1024, 0);
-  printf("retour du serveur reçu\n");
-  if (recu < 0){
-      perror("erreur lecture");
-      exit(4);
-  }
-  if (recu == 0){
-      printf("serveur off\n");
-      exit(0);
-  }
-  for(int i = 0; i < 1024/16; i++){
-    print_bits(ntohs((uint16_t) server_msg[i]));
-  }
-  //printf("Test: %s\n",server_msg[0]);
+    ssize_t recu=recv(clientfd,server_msg,sizeof(uint16_t)*1024,0);
+    printf("retour du serveur reçu\n");
+    if(recu<0){
+        perror("erreur lecture");
+        exit(4);
+    }
+    if(recu==0){
+        printf("serveur off\n");
+        exit(0);
+    }
+    for(int j=0; j<1024/16; j++){
+        print_bits(ntohs((uint16_t) server_msg[j]));
+    }
+    //printf("Test: %s\n",server_msg[0]);
 }
 
-res_inscription* send_inscription(inscription *i){
-    int ecrit = send(clientfd, i, 12, 0);
-    if(ecrit <= 0){
+res_inscription *send_inscription(inscription *i){
+    ssize_t ecrit=send(clientfd,i,12,0);
+    if(ecrit<=0){
         perror("erreur ecriture");
         exit(3);
     }
@@ -200,22 +200,22 @@ res_inscription* send_inscription(inscription *i){
     memset(server_msg,0,3*sizeof(uint16_t));
 
     //*** reception d'un message ***
-    int recu = recv(clientfd, server_msg,3*sizeof(uint16_t), 0);
+    ssize_t recu=recv(clientfd,server_msg,3*sizeof(uint16_t),0);
     printf("retour du serveur reçu\n");
-    if (recu < 0){
+    if(recu<0){
         perror("erreur lecture");
         exit(4);
     }
-    if (recu == 0){
+    if(recu==0){
         printf("serveur off\n");
         exit(0);
     }
 
-    for(int i = 0; i < 3; i++){
-      print_bits(ntohs((uint16_t) server_msg[i]));
+    for(int j=0; j<3; j++){
+        print_bits(ntohs((uint16_t) server_msg[j]));
     }
 
-    res_inscription* res=malloc(sizeof(res_inscription));
+    res_inscription *res=malloc(sizeof(res_inscription));
     res->id=(ntohs(server_msg[0]))>>5;
     print_bits(res->id);
 
@@ -223,22 +223,22 @@ res_inscription* send_inscription(inscription *i){
 }
 
 void client(){
-    int fdsock = socket(PF_INET, SOCK_STREAM, 0);
-    if(fdsock == -1){
+    int fdsock=socket(PF_INET,SOCK_STREAM,0);
+    if(fdsock==-1){
         perror("creation socket");
         exit(1);
     }
 
     //*** creation de l'adresse du destinataire (serveur) ***
     struct sockaddr_in address_sock;
-    memset(&address_sock, 0,sizeof(address_sock));
-    address_sock.sin_family = AF_INET;
-    address_sock.sin_port = htons(7777);
-    inet_pton(AF_INET, "localhost", &address_sock.sin_addr);
+    memset(&address_sock,0,sizeof(address_sock));
+    address_sock.sin_family=AF_INET;
+    address_sock.sin_port=htons(7777);
+    inet_pton(AF_INET,"localhost",&address_sock.sin_addr);
 
     //*** demande de connexion au serveur ***
-    int r = connect(fdsock, (struct sockaddr *) &address_sock, sizeof(address_sock));
-    if(r == -1){
+    int r=connect(fdsock,(struct sockaddr *) &address_sock,sizeof(address_sock));
+    if(r==-1){
         perror("echec de la connexion");
         exit(2);
     }
@@ -272,7 +272,7 @@ void print_ascii(){
     printf("Entrez un chiffre:\n");
 }
 
-res_inscription* test(){
+res_inscription *test(){
     char pseudo[]="testlucas";
     inscription *i=create_inscription(pseudo);
     return send_inscription(i);
@@ -297,7 +297,7 @@ void run(){
     char *reponse=malloc(1024*sizeof(char));
     int nbfil=0;
     int n=0;
-    res_inscription* truc = malloc(sizeof(res_inscription));
+    res_inscription *truc=malloc(sizeof(res_inscription));
 
     switch(choice){
         case 1:
@@ -312,7 +312,7 @@ void run(){
 
             printf("NBFIL: %d\nInput: %s\n",nbfil,reponse);
 
-            send_message(truc,reponse, nbfil);
+            send_message(truc,reponse,nbfil);
             break;
         case 3:
             printf("Please enter the thread: ");
@@ -321,8 +321,8 @@ void run(){
             printf("Please enter the number of posts: ");
             scanf("%d",&n);
 
-            request_n_tickets(truc,"", nbfil,n);
-        break;
+            request_n_tickets(truc,"",nbfil,n);
+            break;
         case 4:
         case 5:
         case 6:
