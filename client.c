@@ -24,7 +24,7 @@ typedef struct client_message {
     entete entete;
     uint16_t numfil;
     uint16_t nb;
-    uint16_t* data;
+    uint8_t * data;
 } client_message;
 
 typedef struct server_message{
@@ -37,6 +37,16 @@ void testMalloc(void *ptr){
     if(ptr==NULL){
         perror("Erreur de malloc() ou realloc().\n");
         exit(1);
+    }
+}
+
+
+void print_8bits(uint8_t n){
+    for (int i = 0; i <= 7; i++) {
+        uint16_t mask = 1 << i;
+        uint16_t bit = (n & mask) >> i;
+
+        printf("%u", bit);
     }
 }
 
@@ -99,18 +109,17 @@ void send_message(res_inscription* i,char* data){
     msg->entete.val=create_entete(2,i->id)->val;
     msg->nb=0;
     uint8_t datalen=strlen(data);
-    msg->data=malloc(sizeof(uint16_t)*(datalen+1));
-    msg->data[0]=msg->data[0] << 8;
+    msg->data=malloc(sizeof(uint8_t)*((datalen)+1));
 
-    memcpy(msg->data,data,sizeof(char));
-    *msg->data=msg->data[0] | datalen;
-    memcpy(msg->data+1,data,sizeof(char)*(datalen-1));
+    *msg->data=datalen;
+    memcpy(msg->data+1,data,sizeof(char)*(datalen));
 
     print_bits(ntohs(msg->entete.val));
     print_bits(msg->numfil);
     print_bits(msg->nb);
-    for(int j=0; j<datalen; ++j){
-        print_bits(msg->data[j]);
+    for(int j=0; j<=datalen+1; ++j){
+        print_8bits(msg->data[j]);
+        if(j%2==1) printf("\n");
     }
 }
 
