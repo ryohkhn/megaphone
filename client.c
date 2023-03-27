@@ -37,7 +37,7 @@ inscription *create_inscription(char pseudo[]){
         for(size_t i=strlen(new_pseudo); i<10; i++){
             new_pseudo[i]='#';
         }
-        pseudo=new_pseudo;
+        strncpy(pseudo,new_pseudo,10);
     }
 
     inscription *inscription_message=malloc(sizeof(inscription));
