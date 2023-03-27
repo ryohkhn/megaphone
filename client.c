@@ -109,7 +109,7 @@ void send_message(res_inscription *i,char *data,int nbfil){
     client_message *msg=malloc(sizeof(client_message));
 
     //TODO use id
-    msg->entete.val=create_entete(2,66)->val;
+    msg->entete.val=create_entete(2,146)->val;
     msg->numfil=nbfil;
     uint8_t datalen=strlen(data);
     msg->data=malloc(sizeof(uint8_t)*((datalen)+1));
