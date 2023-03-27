@@ -108,8 +108,7 @@ void print_inscription_bits(inscription *msg){
 void send_message(res_inscription *i,char *data,int nbfil){
     client_message *msg=malloc(sizeof(client_message));
 
-    //TODO use id
-    msg->entete.val=create_entete(2,146)->val;
+    msg->entete.val=create_entete(2,i->id)->val;
     msg->numfil=nbfil;
     uint8_t datalen=strlen(data);
     msg->data=malloc(sizeof(uint8_t)*((datalen)+1));
@@ -154,8 +153,7 @@ void send_message(res_inscription *i,char *data,int nbfil){
 void request_n_tickets(res_inscription *i,char *data,int nbfil,int n){
     client_message *msg=malloc(sizeof(client_message));
 
-    //TODO use id
-    msg->entete.val=create_entete(3,66)->val;
+    msg->entete.val=create_entete(3,i->id)->val;
     msg->numfil=0;
     msg->nb=0;
     msg->data=malloc(sizeof(uint8_t)*2);
@@ -284,57 +282,62 @@ void run(){
     long choice;
     char *endptr;
 
-    fgets(input,50,stdin);
-    choice=strtol(input,&endptr,10);
+    res_inscription *user_id=malloc(sizeof(res_inscription));
 
-    if(endptr==input || *endptr!='\n'){
-        printf("Invalid input\n");
-        exit(1);
+    while(1){
+        print_ascii();
+
+        fgets(input,50,stdin);
+        choice=strtol(input,&endptr,10);
+
+        if(endptr==input || *endptr!='\n'){
+            printf("Invalid input\n");
+            exit(1);
+        }
+
+        client();
+
+        char *reponse=malloc(1024*sizeof(char));
+        int nbfil=0;
+        int n=0;
+
+        switch(choice){
+            case 1:
+                user_id=test();
+                printf("%d\n",user_id->id);
+                break;
+            case 2:
+                printf("Please enter the thread (0 for a new thread): ");
+                scanf("%d",&nbfil);
+
+                printf("Message to post: ");
+                scanf("%s",reponse);
+
+                printf("NBFIL: %d\nInput: %s\n",nbfil,reponse);
+
+                send_message(user_id,reponse,nbfil);
+                break;
+            case 3:
+                printf("Please enter the thread: ");
+                scanf("%d",&nbfil);
+
+                printf("Please enter the number of posts: ");
+                scanf("%d",&n);
+
+                request_n_tickets(user_id,"",nbfil,n);
+                break;
+            case 4:
+            case 5:
+            case 6:
+            default:
+                exit(0);
+        }
+
+        close(clientfd);
     }
-
-    client();
-
-    char *reponse=malloc(1024*sizeof(char));
-    int nbfil=0;
-    int n=0;
-    res_inscription *truc=malloc(sizeof(res_inscription));
-
-    switch(choice){
-        case 1:
-            truc=test();
-            break;
-        case 2:
-            printf("Please enter the thread (0 for a new thread): ");
-            scanf("%d",&nbfil);
-
-            printf("Message to post: ");
-            scanf("%s",reponse);
-
-            printf("NBFIL: %d\nInput: %s\n",nbfil,reponse);
-
-            send_message(truc,reponse,nbfil);
-            break;
-        case 3:
-            printf("Please enter the thread: ");
-            scanf("%d",&nbfil);
-
-            printf("Please enter the number of posts: ");
-            scanf("%d",&n);
-
-            request_n_tickets(truc,"",nbfil,n);
-            break;
-        case 4:
-        case 5:
-        case 6:
-        default:
-
-            exit(0);
-    }
-    close(clientfd);
 }
 
 int main(void){
-    print_ascii();
     run();
     return 0;
 }
