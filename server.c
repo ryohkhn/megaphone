@@ -3,7 +3,110 @@
 #define PORT 7477
 #define SIZE_BUF 256
 
+// même fonction que client.c (mettre dans utilities ou un .h/.c partagé ?)
+entete *create_entete(uint8_t codereq,uint16_t id){
+    entete* entete=malloc(sizeof(struct entete));
+    entete->val=id;
+    entete->val=entete->val<<5;
+    entete->val=entete->val | codereq;
+    entete->val=htons(entete->val);
+
+    return entete;
+}
+
+void send_message(uint8_t codereq, uint16_t id, uint16_t nb, uint16_t numfil, int sock_client){
+   server_message * msg = malloc(sizeof(server_message));
+
+    msg->entete.val = create_entete(codereq,id)->val;
+    msg->numfil = numfil;
+    msg->nb = nb;
+
+    int nboctet = send(sock_client, msg, sizeof(server_message), 0);
+    if(nboctet <= 0)perror("send");
+
+
+
+}
+
+// todo mutex
+void inscription_client(char * pseudo, int sock_client){
+    list_client * current_client = clients;
+    id_dernier_client += 1;
+    if(current_client == NULL){
+
+        current_client = malloc(sizeof(list_client));
+        current_client->id = id_dernier_client;
+        current_client->pseudo = malloc(sizeof(char) * strlen(pseudo));
+    }
+    else {
+        // on va au dernier client de la liste
+        while (current_client->suivant != NULL) {
+            current_client = current_client->suivant;
+        }
+
+        // on crée le suivant
+        current_client->suivant = malloc(sizeof(list_client));
+        current_client = current_client->suivant;
+
+        // on modifie le suivant
+        current_client->id = id_dernier_client;
+        current_client->pseudo = malloc(sizeof(char) * strlen(pseudo));
+    }
+
+    // on envoie le message de l'inscription
+    send_message(1, current_client->id, 0, 0, sock_client);
+
+}
+
+
+
+
 void *serve(void *arg){
+
+// on cherche codereq pour creer la structure correspondante et appeler la bonne fonction
+    int sock_client = *((int *) arg);
+    char buffer[sizeof(client_message)];
+    while(1) {
+        int nb_octets = recv(sock_client, buffer, sizeof(buffer), 0);
+        if (nb_octets < 0) {
+            perror("recv serve");
+            // gestion d'erreur
+        } else if (nb_octets == 0) {
+            printf("la connexion a été fermée");
+            // la connexion a été fermée
+        } else {
+            // Vérification de la valeur de l'entête pour différencier les deux cas
+            entete *header = (entete *) buffer;
+            uint8_t codereq = header->val & 0x1F;
+            if (codereq == 1) {
+                // le message reçu est de type inscription_message
+                inscription *insc = (inscription *) buffer;
+
+                inscription_client(insc->pseudo, sock_client);
+            } else {
+                // le message reçu est de type client_message
+                client_message *msg = (client_message *) buffer;
+
+                switch (codereq) {
+                    case 2:
+                        break;
+                    case 3:
+                        break;
+                    case 4:
+                        break;
+                    case 5:
+                        break;
+                    default:
+                        perror("switch codereq");
+                        break;
+                }
+            }
+        }
+    }
+
+
+    /*
+
     int sock=*((int *) arg);
     char buf[SIZE_BUF];
     memset(buf,0,sizeof(buf));
@@ -29,8 +132,10 @@ void *serve(void *arg){
     if(ecrit<=0)
         perror("send");
 
+
     close(sock);
     return NULL;
+     */
 }
 
 int main(){
@@ -87,7 +192,7 @@ int main(){
         if(sock_client>=0){
             pthread_t thread;
             //*** le serveur cree un thread et passe un pointeur sur socket client à la fonction serve ***
-            if(pthread_create(&thread,NULL,serve,sock_client)==-1){
+            if(pthread_create(&thread,NULL,serve,sock_client) == -1){
                 perror("pthread_create");
                 continue;
             }
