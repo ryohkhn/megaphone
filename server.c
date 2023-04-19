@@ -1,18 +1,11 @@
 #include "server.h"
 
+
 #define PORT 7477
 #define SIZE_BUF 256
 
 // même fonction que client.c (mettre dans utilities ou un .h/.c partagé ?)
-entete *create_entete(uint8_t codereq,uint16_t id){
-    entete* entete=malloc(sizeof(struct entete));
-    entete->val=id;
-    entete->val=entete->val<<5;
-    entete->val=entete->val | codereq;
-    entete->val=htons(entete->val);
 
-    return entete;
-}
 
 void send_message(uint8_t codereq, uint16_t id, uint16_t nb, uint16_t numfil, int sock_client){
    server_message * msg = malloc(sizeof(server_message));
