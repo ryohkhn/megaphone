@@ -1,7 +1,7 @@
 #include "server.h"
 
 
-#define PORT 7477
+#define PORT 7777
 #define SIZE_BUF 256
 
 // même fonction que client.c (mettre dans utilities ou un .h/.c partagé ?)
@@ -66,11 +66,14 @@ void *serve(void *arg){
             // gestion d'erreur
         } else if (nb_octets == 0) {
             printf("la connexion a été fermée");
+            break;
             // la connexion a été fermée
         } else {
             // Vérification de la valeur de l'entête pour différencier les deux cas
             entete *header = (entete *) buffer;
-            uint8_t codereq = header->val & 0x1F;
+            uint8_t codereq = ntohs(header->val) & 0x1F;
+            //print_bits(header->val);
+            printf("CODEREQ %d\n", codereq);
             if (codereq == 1) {
                 // le message reçu est de type inscription_message
                 inscription *insc = (inscription *) buffer;
