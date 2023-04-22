@@ -26,10 +26,11 @@ void inscription_client(char * pseudo, int sock_client){
     list_client * current_client = clients;
     id_dernier_client += 1;
     if(current_client == NULL){
-
         current_client = malloc(sizeof(list_client));
         current_client->id = id_dernier_client;
         current_client->pseudo = malloc(sizeof(char) * strlen(pseudo));
+        current_client->pseudo = pseudo;
+        printf("Created client with pseudo: %s and id: %ld\n", current_client->pseudo, current_client->id);
     }
     else {
         // on va au dernier client de la liste
@@ -44,15 +45,28 @@ void inscription_client(char * pseudo, int sock_client){
         // on modifie le suivant
         current_client->id = id_dernier_client;
         current_client->pseudo = malloc(sizeof(char) * strlen(pseudo));
+        current_client->pseudo = pseudo;
+        printf("Created client with pseudo: %s and id: %ld\n", current_client->pseudo, current_client->id);
     }
+
 
     // on envoie le message de l'inscription
     send_message(1, current_client->id, 0, 0, sock_client);
-
 }
 
 
+void poster_billet(client_message *msg){
+  int id = (ntohs(msg->entete.val)) >> 5;
 
+  printf("Received message from user with id %d, to post to numfil %d\n",id,msg->numfil);
+  printf("The message is: %s\n", (char *) (msg->data + 1));
+
+  //TODO handle numfil = 0 (pick random)
+
+  //TODO handle stocking message
+
+  //TODO sending response to client
+}
 
 void *serve(void *arg){
 
@@ -61,6 +75,7 @@ void *serve(void *arg){
     char buffer[sizeof(client_message)];
     while(1) {
         int nb_octets = recv(sock_client, buffer, sizeof(buffer), 0);
+
         if (nb_octets < 0) {
             perror("recv serve");
             // gestion d'erreur
@@ -68,23 +83,25 @@ void *serve(void *arg){
             printf("la connexion a été fermée");
             break;
             // la connexion a été fermée
-        } else {
+        }
+        else {
             // Vérification de la valeur de l'entête pour différencier les deux cas
             entete *header = (entete *) buffer;
             uint8_t codereq = ntohs(header->val) & 0x1F;
-            //print_bits(header->val);
-            printf("CODEREQ %d\n", codereq);
+            printf("CODEREQ %d\n", codereq); // DEBUG
             if (codereq == 1) {
                 // le message reçu est de type inscription_message
                 inscription *insc = (inscription *) buffer;
 
                 inscription_client(insc->pseudo, sock_client);
             } else {
-                // le message reçu est de type client_message
-                client_message *msg = (client_message *) buffer;
+
+                client_message *received_msg = string_to_client_message(buffer);
+
 
                 switch (codereq) {
                     case 2:
+                        poster_billet(received_msg);
                         break;
                     case 3:
                         break;
@@ -132,6 +149,7 @@ void *serve(void *arg){
     close(sock);
     return NULL;
      */
+     return NULL;
 }
 
 int main(){
@@ -146,7 +164,7 @@ int main(){
     int sock=socket(PF_INET6,SOCK_STREAM,0);
     if(sock<0){
         perror("creation socket");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     //*** desactiver l'option n'accepter que de l'IPv6 **
@@ -165,17 +183,28 @@ int main(){
     int r=bind(sock,(struct sockaddr *) &address_sock,sizeof(address_sock));
     if(r<0){
         perror("erreur bind");
-        exit(2);
+        exit(EXIT_FAILURE);
     }
 
     //*** Le serveur est pret a ecouter les connexions sur le port ***
     r=listen(sock,0);
     if(r<0){
         perror("erreur listen");
-        exit(2);
+        exit(EXIT_FAILURE);
     }
 
-    while(1){
+    struct sigaction sa;
+    memset(&sa, 0, sizeof(sa));
+    sa.sa_sigaction = signal_handler;
+    sa.sa_flags = SA_SIGINFO;
+
+    if (sigaction(SIGINT, &sa, NULL) < 0) {
+        perror("Erreur d'initialisation de sigaction");
+        exit(EXIT_FAILURE);
+    }
+
+
+    while(running){
         struct sockaddr_in6 addrclient;
         socklen_t size=sizeof(addrclient);
 
@@ -198,6 +227,8 @@ int main(){
                    htons(addrclient.sin6_port));
         }
     }
+    printf("Closing sock\n");
+
     //*** fermeture socket serveur ***
     close(sock);
 

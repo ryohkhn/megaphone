@@ -43,6 +43,9 @@ void print_inscription_bits(inscription *msg);
 
 entete *create_entete(uint8_t codereq,uint16_t id);
 
+char* client_message_to_string(client_message *msg);
+
+client_message* string_to_client_message(const char *str);
 
 #define MEGAPHONE_UTILITIES_H
 

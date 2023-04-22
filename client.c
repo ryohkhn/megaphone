@@ -28,26 +28,23 @@ void send_message(res_inscription *i,char *data,int nbfil){
 
     msg->entete.val=create_entete(2,i->id)->val;
     msg->numfil=nbfil;
-    uint8_t datalen=strlen(data);
+    uint8_t datalen=strlen(data)+1;
     msg->data=malloc(sizeof(uint8_t)*((datalen)+1));
 
     *msg->data=datalen;
+    printf("%d\n",datalen);
     memcpy(msg->data+1,data,sizeof(char)*(datalen));
 
-    print_bits(ntohs(msg->entete.val));
-    print_bits(msg->numfil);
-    print_bits(msg->nb);
-    for(int j=0; j<=datalen+1; ++j){
-        if(j!=0)
-            print_8bits(msg->data[j]);
-    }
 
-    ssize_t ecrit=send(clientfd,msg,sizeof(msg->entete)+sizeof(uint16_t)*2+sizeof(uint8_t)*(datalen+1),0);
+    // Serialize the client_message structure and send to clientfd
+    char *serialized_msg = client_message_to_string(msg);
+    size_t serialized_msg_size = sizeof(uint16_t) * 3 + (datalen + 1) * sizeof(uint8_t);
+    ssize_t ecrit = send(clientfd, serialized_msg, serialized_msg_size, 0);
+
     if(ecrit<=0){
         perror("erreur ecriture");
         exit(3);
     }
-    printf("message envoyé\n");
 
     //*** reception d'un message ***
     uint16_t *server_msg=malloc(sizeof(uint8_t)*((datalen)+1));
@@ -110,6 +107,7 @@ res_inscription *send_inscription(inscription *i){
         perror("erreur ecriture");
         exit(3);
     }
+    print_bits((i->entete).val);
     printf("demande d'inscription envoyée\n");
 
     uint16_t server_msg[3];

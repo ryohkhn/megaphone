@@ -8,7 +8,7 @@ void testMalloc(void *ptr){
 }
 
 void print_8bits(uint8_t n){
-    for(int i=0; i<=7; i++){
+    for(int i=7; i>=0; i--){
         uint8_t mask=1<<i;
         uint8_t bit=(n & mask)>>i;
 
@@ -46,4 +46,42 @@ void print_inscription_bits(inscription *msg){
         printf(" ");
     }
     printf("\n");
+}
+
+client_message *string_to_client_message(const char *buffer) {
+    client_message *msg = malloc(sizeof(client_message));
+
+    // Copy entete, numfil, and nb from the buffer
+    memcpy(&(msg->entete.val), buffer, sizeof(uint16_t));
+    memcpy(&(msg->numfil), buffer + sizeof(uint16_t), sizeof(uint16_t));
+    memcpy(&(msg->nb), buffer + sizeof(uint16_t) * 2, sizeof(uint16_t));
+
+    // Extract datalen from the buffer, located right after nb
+    uint8_t datalen = buffer[sizeof(uint16_t) * 3];
+
+    // Allocate memory for data, including space for the null-terminator
+    msg->data = malloc((size_t)(datalen + 1));
+
+    // Copy the data from the buffer, starting after datalen
+    memcpy(msg->data, buffer + sizeof(uint16_t) * 3, (size_t)datalen);
+
+    // Manually set the datalen as the first byte of the data array
+    msg->data[0] = datalen;
+
+    // Add a null-terminator at the end of the data
+    msg->data[datalen + 1] = '\0';
+
+    return msg;
+}
+
+char *client_message_to_string(client_message *msg) {
+    size_t buffer_size = sizeof(uint16_t) * 3 + 1 + msg->data[0];
+    char *buffer = malloc(buffer_size);
+
+    memcpy(buffer, &(msg->entete.val), sizeof(uint16_t));
+    memcpy(buffer + sizeof(uint16_t), &(msg->numfil), sizeof(uint16_t));
+    memcpy(buffer + sizeof(uint16_t) * 2, &(msg->nb), sizeof(uint16_t));
+    memcpy(buffer + sizeof(uint16_t) * 3, msg->data, 1 + msg->data[0]);
+
+    return buffer;
 }
