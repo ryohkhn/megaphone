@@ -32,7 +32,6 @@ void send_message(res_inscription *i,char *data,int nbfil){
     msg->data=malloc(sizeof(uint8_t)*((datalen)+1));
 
     *msg->data=datalen;
-    printf("%d\n",datalen);
     memcpy(msg->data+1,data,sizeof(char)*(datalen));
 
 
@@ -47,6 +46,7 @@ void send_message(res_inscription *i,char *data,int nbfil){
     }
 
     //*** reception d'un message ***
+
     uint16_t *server_msg=malloc(sizeof(uint8_t)*((datalen)+1));
     memset(server_msg,0,sizeof(uint8_t)*((datalen)+1));
 
@@ -63,6 +63,7 @@ void send_message(res_inscription *i,char *data,int nbfil){
     for(int i=0; i<3; i++){
         print_bits(ntohs((uint16_t) server_msg[i]));
     }
+
 }
 
 void print_n_tickets(uint16_t* server_msg){
@@ -267,6 +268,7 @@ void run(){
                 printf("NBFIL: %d\nInput: %s\n",nbfil,reponse);
 
                 send_message(res_ins,reponse,nbfil);
+                printf("Done\n");
                 break;
             case 3:
                 printf("Please enter the thread: ");

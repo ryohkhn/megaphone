@@ -20,6 +20,8 @@ uint16_t id_dernier_client = 0;
 list_client * clients;
 // possibilité d'optimisation en utilisant un tableau au lieu d'une liste.
 
+// liste des listes chainees pour les messages postes dans un fil
+fil *fils[MAX_FIL] = {NULL};
 
 int running = 1;
 void signal_handler(int signal, siginfo_t *siginfo, void *context) {

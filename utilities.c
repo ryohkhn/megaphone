@@ -89,3 +89,43 @@ char *client_message_to_string(client_message *msg) {
 
     return buffer;
 }
+
+client_message *copy_client_message(client_message *msg) {
+    client_message *copy = (client_message *)malloc(sizeof(client_message));
+    copy->entete = msg->entete;
+    copy->numfil = msg->numfil;
+    copy->nb = msg->nb;
+    uint8_t datalen = msg->data[0];
+    copy->data = (uint8_t *)malloc(sizeof(uint8_t) * (datalen + 1));
+    memcpy(copy->data, msg->data, sizeof(uint8_t) * (datalen + 1));
+    return copy;
+}
+
+void add_message_to_fil(fil *fils[], client_message *msg, uint16_t fil_number) {
+    fil *current_fil = fils[fil_number];
+    if (current_fil == NULL) {
+        current_fil = (fil *)malloc(sizeof(fil));
+        current_fil->fil_number = fil_number;
+        current_fil->head = NULL;
+        fils[fil_number] = current_fil;
+    }
+    message_node *new_node = (message_node *)malloc(sizeof(message_node));
+    new_node->msg = msg;
+    new_node->next = current_fil->head;
+    current_fil->head = new_node;
+}
+
+
+char** retrieve_messages_from_fil(fil *fils[], uint16_t fil_number) {
+    fil *current_fil = fils[fil_number];
+    message_node *current = current_fil->head;
+    char **messages = malloc(sizeof(char *) * 1024);
+    int index = 0;
+    while (current != NULL) {
+        messages[index] = strdup((char *)(current->msg->data) + 1); // Assuming the data starts at msg.data[1]
+        index++;
+        current = current->next;
+    }
+    messages[index] = NULL; // Add NULL at the end of the messages array
+    return messages;
+}

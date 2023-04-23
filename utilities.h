@@ -7,6 +7,8 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 
+#define MAX_FIL 65535
+
 typedef struct entete{
     uint16_t val;
 } entete;
@@ -33,6 +35,19 @@ typedef struct server_message{
     uint16_t nb;
 } server_message;
 
+// List of fils
+typedef struct message_node {
+    client_message *msg;
+    struct message_node *next;
+} message_node;
+
+
+// Specific fil as a list of messages
+typedef struct fil {
+    uint16_t fil_number;
+    message_node *head;
+} fil;
+
 void testMalloc(void *ptr);
 
 void print_8bits(uint8_t n);
@@ -48,6 +63,11 @@ char* client_message_to_string(client_message *msg);
 client_message* string_to_client_message(const char *str);
 
 uint16_t get_id_entete(uint16_t ent);
+
+void add_message_to_fil(fil **fils, client_message *msg, uint16_t fil_number);
+
+char** retrieve_messages_from_fil(fil **fils, uint16_t fil_number);
+
 
 #define MEGAPHONE_UTILITIES_H
 

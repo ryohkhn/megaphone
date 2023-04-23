@@ -16,9 +16,6 @@ void send_message(uint8_t codereq, uint16_t id, uint16_t nb, uint16_t numfil, in
 
     int nboctet = send(sock_client, msg, sizeof(server_message), 0);
     if(nboctet <= 0)perror("send");
-
-
-
 }
 
 // todo mutex
@@ -49,23 +46,42 @@ void inscription_client(char * pseudo, int sock_client){
         printf("Created client with pseudo: %s and id: %ld\n", current_client->pseudo, current_client->id);
     }
 
-
     // on envoie le message de l'inscription
     send_message(1, current_client->id, 0, 0, sock_client);
 }
 
 
-void poster_billet(client_message *msg){
+void poster_billet(client_message *msg, int sock_client){
   int id = (ntohs(msg->entete.val)) >> 5;
 
   printf("Received message from user with id %d, to post to numfil %d\n",id,msg->numfil);
   printf("The message is: %s\n", (char *) (msg->data + 1));
 
+  uint16_t numfil = msg->numfil;
+
   //TODO handle numfil = 0 (pick random)
+  if (numfil == 0) {
+       // Find the first empty fil
+       for (uint16_t i = 1; i < MAX_FIL; ++i) {
+           if (fils[i] == NULL) {
+               numfil = i;
+               break;
+           }
+       }
+   }
 
-  //TODO handle stocking message
+  add_message_to_fil(fils, msg, numfil);
 
-  //TODO sending response to client
+  //TEST print all messages in the fil after adding the new one
+  char** res = retrieve_messages_from_fil(fils, numfil);
+  int i = 0;
+  while (res[i] != NULL) {
+      printf("Message %d: %s\n", i+1, res[i]);
+      i++;
+  }
+
+  //sending response to client
+  send_message(2, id, 0, numfil, sock_client);
 }
 
 void *serve(void *arg){
@@ -80,7 +96,7 @@ void *serve(void *arg){
             perror("recv serve");
             // gestion d'erreur
         } else if (nb_octets == 0) {
-            printf("la connexion a été fermée");
+            printf("la connexion a été fermée\n");
             break;
             // la connexion a été fermée
         }
@@ -101,7 +117,7 @@ void *serve(void *arg){
 
                 switch (codereq) {
                     case 2:
-                        poster_billet(received_msg);
+                        poster_billet(received_msg, sock_client);
                         break;
                     case 3:
                         break;
