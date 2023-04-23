@@ -218,7 +218,6 @@ void print_ascii(){
            "  ------------------------------------------------------------\n"
            "                                                  \n"
            "                                                  \n");
-    printf("Entrez un chiffre:\n");
 }
 
 res_inscription *test(){
@@ -229,21 +228,20 @@ res_inscription *test(){
 
 
 void run(){
-    char input[50];
-    long choice;
-    char *endptr;
+    int choice;
 
     res_inscription *res_ins;
 
     while(1){
         print_ascii();
 
-        fgets(input,50,stdin);
-        choice=strtol(input,&endptr,10);
-
-        if(endptr==input || *endptr!='\n'){
-            printf("Invalid input\n");
-            exit(1);
+        while(1){
+            printf("Entrez un chiffre entre 1 et 6:\n");
+            if(scanf("%d",&choice)!=1){
+                while(getchar()!='\n');
+                continue;
+            }
+            if(choice>=1 && choice<=6) break;
         }
 
         client();
