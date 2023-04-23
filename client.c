@@ -65,43 +65,75 @@ void send_message(res_inscription *i,char *data,int nbfil){
     }
 }
 
-void request_n_tickets(res_inscription *i,char *data,int nbfil,int n){
+void print_n_tickets(uint16_t* server_msg){
+    printf("ID local: %d\n",user_id);
+    printf("Codereq/ID reçu: %d\n",get_id_entete(server_msg[0]));
+    uint16_t nb_fil_total=ntohs(server_msg[1]);
+    printf("Nombre de fils à afficher: %d\n",nb_fil_total);
+
+    int count=2;
+    for(int i=0; i<nb_fil_total; i++){
+        printf("\nNuméro du fil: %d\n",ntohs(server_msg[count]));
+        count++;
+        printf("Originaire du fil: ");
+        for(int j=0; j<5; j++, count++){
+            char* chars=(char*)&server_msg[count];
+            printf("%c%c",chars[0],chars[1]);
+        }
+        printf("\nPseudo: ");
+        for(int k=0; k<5; k++, count++){
+            char* chars=(char*)&server_msg[count];
+            printf("%c%c",chars[0],chars[1]);
+        }
+        //TODO Afficher contenu du message
+    }
+    printf("\n");
+}
+
+void request_n_tickets(res_inscription *i,uint16_t numfil,uint16_t n){
     client_message *msg=malloc(sizeof(client_message));
 
     msg->entete.val=create_entete(3,i->id)->val;
-    msg->numfil=0;
-    msg->nb=0;
+    msg->numfil=htons(numfil);
+    msg->nb=htons(n);
     msg->data=malloc(sizeof(uint8_t)*2);
-    *msg->data=0;
+    *(msg->data)=0;
+
+    printf("\nEntête envoyée au serveur:\n");
+    print_bits(ntohs(msg->entete.val));
 
     ssize_t ecrit=send(clientfd,msg,sizeof(msg->entete)+sizeof(uint16_t)*2+sizeof(uint8_t)*2,0);
     if(ecrit<=0){
-        perror("erreur ecriture");
+        perror("Erreur ecriture");
         exit(3);
     }
-    printf("message envoyé\n");
+    printf("Message envoyé au serveur.\n");
 
-    //*** reception d'un message ***
-    uint16_t *server_msg=malloc(sizeof(uint16_t)*1024);
-    memset(server_msg,0,sizeof(uint16_t)*1024);
+    // reception d'un message
+    uint16_t* server_msg=malloc(sizeof(uint16_t)*SIZE_BUF);
+    memset(server_msg,0,sizeof(uint16_t)*SIZE_BUF);
 
-    ssize_t recu=recv(clientfd,server_msg,sizeof(uint16_t)*1024,0);
-    printf("retour du serveur reçu\n");
-    if(recu<0){
-        perror("erreur lecture");
-        exit(4);
+    int offset=0;
+    printf("retour du serveur: \n");
+    while(1){
+        ssize_t recu=recv(clientfd,server_msg+offset,sizeof(uint16_t) * SIZE_BUF,0);
+        if(recu<0){
+            perror("erreur lecture");
+            exit(4);
+        }
+        if(recu==0){
+            printf("serveur off\n");
+            break;
+        }
+        offset+=SIZE_BUF;
+
+        server_msg=realloc(server_msg,sizeof(uint16_t)*(offset+SIZE_BUF));
     }
-    if(recu==0){
-        printf("serveur off\n");
-        exit(0);
-    }
-    for(int j=0; j<1024/16; j++){
-        print_bits(ntohs((uint16_t) server_msg[j]));
-    }
-    //printf("Test: %s\n",server_msg[0]);
+
+    print_n_tickets(server_msg);
 }
 
-res_inscription *send_inscription(inscription *i){
+res_inscription* send_inscription(inscription *i){
     ssize_t ecrit=send(clientfd,i,12,0);
     if(ecrit<=0){
         perror("erreur ecriture");
@@ -126,12 +158,14 @@ res_inscription *send_inscription(inscription *i){
     }
 
     for(int j=0; j<3; j++){
+        if(j==0) printf("codereq/id:  ");
+        else if (j==1) printf("numfil:      ");
+        else printf("nb:          ");
         print_bits(ntohs((uint16_t) server_msg[j]));
     }
 
     res_inscription *res=malloc(sizeof(res_inscription));
-    res->id=(ntohs(server_msg[0]))>>5;
-    print_bits(res->id);
+    res->id=get_id_entete(server_msg[0]);
 
     return res;
 }
@@ -198,7 +232,7 @@ void run(){
     long choice;
     char *endptr;
 
-    res_inscription *user_id=malloc(sizeof(res_inscription));
+    res_inscription *res_ins;
 
     while(1){
         print_ascii();
@@ -219,8 +253,9 @@ void run(){
 
         switch(choice){
             case 1:
-                user_id=test();
-                printf("%d\n",user_id->id);
+                res_ins=test();
+                user_id=res_ins->id;
+                printf("id: %d\n",res_ins->id);
                 break;
             case 2:
                 printf("Please enter the thread (0 for a new thread): ");
@@ -231,7 +266,7 @@ void run(){
 
                 printf("NBFIL: %d\nInput: %s\n",nbfil,reponse);
 
-                send_message(user_id,reponse,nbfil);
+                send_message(res_ins,reponse,nbfil);
                 break;
             case 3:
                 printf("Please enter the thread: ");
@@ -240,7 +275,7 @@ void run(){
                 printf("Please enter the number of posts: ");
                 scanf("%d",&n);
 
-                request_n_tickets(user_id,"",nbfil,n);
+                request_n_tickets(res_ins,nbfil,n);
                 break;
             case 4:
             case 5:

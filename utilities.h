@@ -47,6 +47,8 @@ char* client_message_to_string(client_message *msg);
 
 client_message* string_to_client_message(const char *str);
 
+uint16_t get_id_entete(uint16_t ent);
+
 #define MEGAPHONE_UTILITIES_H
 
 #endif //MEGAPHONE_UTILITIES_H

@@ -7,6 +7,10 @@ void testMalloc(void *ptr){
     }
 }
 
+uint16_t get_id_entete(uint16_t ent){
+    return ntohs(ent)>>5;
+}
+
 void print_8bits(uint8_t n){
     for(int i=7; i>=0; i--){
         uint8_t mask=1<<i;
