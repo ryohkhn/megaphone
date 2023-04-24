@@ -11,6 +11,10 @@ uint16_t get_id_entete(uint16_t ent){
     return ntohs(ent)>>5;
 }
 
+uint16_t chars_to_uint16(char a,char b){
+    return ((uint16_t)b << 8) | a;
+}
+
 void print_8bits(uint8_t n){
     for(int i=7; i>=0; i--){
         uint8_t mask=1<<i;

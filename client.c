@@ -66,28 +66,48 @@ void send_message(res_inscription *i,char *data,int nbfil){
 
 }
 
-void print_n_tickets(uint16_t* server_msg){
+void print_n_tickets(char *server_msg,uint16_t numfil){
+    // TODO Vérifier erreur CODEREQ 31
     printf("ID local: %d\n",user_id);
-    printf("Codereq/ID reçu: %d\n",get_id_entete(server_msg[0]));
-    uint16_t nb_fil_total=ntohs(server_msg[1]);
-    printf("Nombre de fils à afficher: %d\n",nb_fil_total);
+    printf("Codereq/ID reçu: %d\n",get_id_entete(chars_to_uint16(server_msg[0],server_msg[1])));
+    uint16_t nb_fil_serv=ntohs(chars_to_uint16(server_msg[2],server_msg[3]));
+    uint16_t nb_serv=ntohs(chars_to_uint16(server_msg[4],server_msg[5]));
+    int count=6;
+    if(numfil==0){
+        printf("Nombre de fils à afficher: %d\n",nb_fil_serv);
+        printf("Total de messages à afficher: %d\n",nb_serv);
+    }
+    else{
+        printf("Fil affiché: %d\n",nb_fil_serv);
+        printf("Nombre de messages à afficher: %d\n",nb_serv);
+    }
 
-    int count=2;
-    for(int i=0; i<nb_fil_total; i++){
-        printf("\nNuméro du fil: %d\n",ntohs(server_msg[count]));
-        count++;
+    for(int i=0; i<nb_serv; i++){
+        printf("\nNuméro du fil: %d\n",ntohs(chars_to_uint16(server_msg[count],server_msg[count+1])));
+        count+=2;
         printf("Originaire du fil: ");
-        for(int j=0; j<5; j++, count++){
-            char* chars=(char*)&server_msg[count];
-            printf("%c%c",chars[0],chars[1]);
+        for(int j=0; j<10; j++, count++){
+            printf("%c",ntohs(server_msg[count]));
         }
         printf("\nPseudo: ");
-        for(int k=0; k<5; k++, count++){
-            char* chars=(char*)&server_msg[count];
-            printf("%c%c",chars[0],chars[1]);
+        for(int j=0; j<10; j++, count++){
+            printf("%c",ntohs(server_msg[count]));
         }
-        //TODO Afficher contenu du message
+        int datalen=ntohs(server_msg[count]);
+        count++;
+        printf("\nDatalen: %d\n",datalen);
+        if(datalen==0){
+            printf("Aucun message\n");
+        }
+        else{
+            printf("Message:\n");
+            for(int j=0; j<datalen; j++, count++){
+                printf("%c",server_msg[count]);
+            }
+        }
+        printf("\n");
     }
+
     printf("\n");
 }
 
@@ -111,13 +131,13 @@ void request_n_tickets(res_inscription *i,uint16_t numfil,uint16_t n){
     printf("Message envoyé au serveur.\n");
 
     // reception d'un message
-    uint16_t* server_msg=malloc(sizeof(uint16_t)*SIZE_BUF);
-    memset(server_msg,0,sizeof(uint16_t)*SIZE_BUF);
+    char* server_msg=malloc(sizeof(char)*SIZE_BUF);
+    memset(server_msg,0,sizeof(char)*SIZE_BUF);
 
     int offset=0;
     printf("retour du serveur: \n");
     while(1){
-        ssize_t recu=recv(clientfd,server_msg+offset,sizeof(uint16_t) * SIZE_BUF,0);
+        ssize_t recu=recv(clientfd,server_msg+offset,sizeof(char) * SIZE_BUF,0);
         if(recu<0){
             perror("erreur lecture");
             exit(4);
@@ -128,10 +148,10 @@ void request_n_tickets(res_inscription *i,uint16_t numfil,uint16_t n){
         }
         offset+=SIZE_BUF;
 
-        server_msg=realloc(server_msg,sizeof(uint16_t)*(offset+SIZE_BUF));
+        server_msg=realloc(server_msg,sizeof(char)*(offset+SIZE_BUF));
     }
 
-    print_n_tickets(server_msg);
+    print_n_tickets(server_msg,numfil);
 }
 
 res_inscription* send_inscription(inscription *i){

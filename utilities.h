@@ -64,6 +64,8 @@ client_message* string_to_client_message(const char *str);
 
 uint16_t get_id_entete(uint16_t ent);
 
+uint16_t chars_to_uint16(char a,char b);
+
 void add_message_to_fil(fil **fils, client_message *msg, uint16_t fil_number);
 
 char** retrieve_messages_from_fil(fil **fils, uint16_t fil_number);
