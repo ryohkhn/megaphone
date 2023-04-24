@@ -191,6 +191,25 @@ res_inscription* send_inscription(inscription *i){
     return res;
 }
 
+void subscribe_to_fil(uint16_t fil_number) {
+    client_message *msg = malloc(sizeof(client_message));
+    msg->entete.val=create_entete(4,user_id)->val;
+    msg->numfil = htons(fil_number);
+
+    ssize_t ecrit=send(clientfd,msg,sizeof(uint16_t)*3+sizeof(uint8_t)*1,0);
+    if(ecrit<=0){
+        perror("Erreur ecriture");
+        exit(3);
+    }
+
+    //TODO receive response from server with the multicast address
+
+    // TODO set up a separate thread or process
+    //    to listen for messages on that address
+
+}
+
+
 void client(){
     int fdsock=socket(PF_INET,SOCK_STREAM,0);
     if(fdsock==-1){
@@ -279,25 +298,26 @@ void run(){
             case 2:
                 printf("Please enter the thread (0 for a new thread): ");
                 scanf("%d",&nbfil);
-
                 printf("Message to post: ");
                 scanf("%s",reponse);
-
                 printf("NBFIL: %d\nInput: %s\n",nbfil,reponse);
 
                 send_message(res_ins,reponse,nbfil);
-                printf("Done\n");
                 break;
             case 3:
                 printf("Please enter the thread: ");
                 scanf("%d",&nbfil);
-
                 printf("Please enter the number of posts: ");
                 scanf("%d",&n);
 
                 request_n_tickets(res_ins,nbfil,n);
                 break;
             case 4:
+                printf("Please enter the thread: ");
+                scanf("%d",&nbfil);
+
+                subscribe_to_fil(nbfil);
+                break;
             case 5:
             case 6:
             default:

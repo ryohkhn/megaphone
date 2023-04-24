@@ -122,6 +122,7 @@ void *serve(void *arg){
                     case 3:
                         break;
                     case 4:
+                        printf("User wants to join fil %d\n", ntohs(received_msg->numfil));
                         break;
                     case 5:
                         break;
