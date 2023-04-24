@@ -11,8 +11,8 @@ void send_message(uint8_t codereq, uint16_t id, uint16_t nb, uint16_t numfil, in
    server_message * msg = malloc(sizeof(server_message));
 
     msg->entete.val = create_entete(codereq,id)->val;
-    msg->numfil = numfil;
-    msg->nb = nb;
+    msg->numfil = htons(numfil);
+    msg->nb = htons(nb);
 
     int nboctet = send(sock_client, msg, sizeof(server_message), 0);
     if(nboctet <= 0)perror("send");
@@ -52,12 +52,12 @@ void inscription_client(char * pseudo, int sock_client){
 
 
 void poster_billet(client_message *msg, int sock_client){
-  int id = (ntohs(msg->entete.val)) >> 5;
+  int id = ntohs(msg->entete.val) >> 5;
 
-  printf("Received message from user with id %d, to post to numfil %d\n",id,msg->numfil);
+  printf("Received message from user with id %d, to post to numfil %d\n",id,ntohs(msg->numfil));
   printf("The message is: %s\n", (char *) (msg->data + 1));
 
-  uint16_t numfil = msg->numfil;
+  uint16_t numfil = ntohs(msg->numfil);
 
   //TODO handle numfil = 0 (pick random)
   if (numfil == 0) {
@@ -68,6 +68,7 @@ void poster_billet(client_message *msg, int sock_client){
                break;
            }
        }
+       printf("Assigned new numfil = %d\n", numfil);
    }
 
   add_message_to_fil(fils, msg, numfil);

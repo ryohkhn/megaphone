@@ -24,16 +24,14 @@ inscription *create_inscription(char pseudo[]){
 }
 
 void send_message(res_inscription *i,char *data,int nbfil){
-    client_message *msg=malloc(sizeof(client_message));
+    client_message *msg = malloc(sizeof(client_message));
 
-    msg->entete.val=create_entete(2,i->id)->val;
-    msg->numfil=nbfil;
-    uint8_t datalen=strlen(data)+1;
-    msg->data=malloc(sizeof(uint8_t)*((datalen)+1));
-
-    *msg->data=datalen;
+    msg->entete.val = create_entete(2,i->id)->val;
+    msg->numfil = htons(nbfil);
+    uint8_t datalen = strlen(data)+1;
+    msg->data = malloc(sizeof(uint8_t)*((datalen)+1));
+    *msg->data = datalen;
     memcpy(msg->data+1,data,sizeof(char)*(datalen));
-
 
     // Serialize the client_message structure and send to clientfd
     char *serialized_msg = client_message_to_string(msg);
@@ -50,7 +48,7 @@ void send_message(res_inscription *i,char *data,int nbfil){
     uint16_t *server_msg=malloc(sizeof(uint8_t)*((datalen)+1));
     memset(server_msg,0,sizeof(uint8_t)*((datalen)+1));
 
-    ssize_t recu=recv(clientfd,server_msg,sizeof(uint8_t)*((datalen)+1),0);
+    ssize_t recu=recv(clientfd,server_msg,sizeof(uint16_t)*(3),0);
     printf("retour du serveur reçu\n");
     if(recu<0){
         perror("erreur lecture");
@@ -60,10 +58,6 @@ void send_message(res_inscription *i,char *data,int nbfil){
         printf("serveur off\n");
         exit(0);
     }
-    for(int i=0; i<3; i++){
-        print_bits(ntohs((uint16_t) server_msg[i]));
-    }
-
 }
 
 void print_n_tickets(char *server_msg,uint16_t numfil){
