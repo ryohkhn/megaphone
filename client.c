@@ -50,6 +50,7 @@ void send_message(res_inscription *i,char *data,int nbfil){
 
     ssize_t recu=recv(clientfd,server_msg,sizeof(uint16_t)*(3),0);
     printf("retour du serveur reçu\n");
+    printf("Message écrit sur le fil %d\n",ntohs(*(server_msg+1)));
     if(recu<0){
         perror("erreur lecture");
         exit(4);
@@ -60,13 +61,30 @@ void send_message(res_inscription *i,char *data,int nbfil){
     }
 }
 
+char* pseudo_nohashtags(uint8_t* pseudo){
+    int len = 10;
+    while (len > 0 && pseudo[len-1] == '#') {
+        len--;
+    }
+
+    char* str=malloc(sizeof(char)*11);
+    memcpy(str, pseudo, len);
+    str[len] = '\0';
+
+    return str;
+}
+
 void print_n_tickets(char *server_msg,uint16_t numfil){
     // TODO Vérifier erreur CODEREQ 31
+    server_message* received_msg=string_to_server_message(server_msg);
+
     printf("ID local: %d\n",user_id);
-    printf("Codereq/ID reçu: %d\n",get_id_entete(chars_to_uint16(server_msg[0],server_msg[1])));
-    uint16_t nb_fil_serv=ntohs(chars_to_uint16(server_msg[2],server_msg[3]));
-    uint16_t nb_serv=ntohs(chars_to_uint16(server_msg[4],server_msg[5]));
-    int count=6;
+    printf("ID reçu: %d\n",get_id_entete(received_msg->entete.val));
+
+    uint16_t nb_fil_serv=ntohs(received_msg->numfil);
+    uint16_t nb_serv=ntohs(received_msg->nb);
+    size_t count=6;
+
     if(numfil==0){
         printf("Nombre de fils à afficher: %d\n",nb_fil_serv);
         printf("Total de messages à afficher: %d\n",nb_serv);
@@ -77,31 +95,47 @@ void print_n_tickets(char *server_msg,uint16_t numfil){
     }
 
     for(int i=0; i<nb_serv; i++){
+        server_billet * received_billet=string_to_server_billet(server_msg+count);
+
+        printf("\nFil %d\n",ntohs(received_billet->numfil));
+        char* originaire=pseudo_nohashtags(received_billet->origine);
+        printf("Originaire du fil: %s\n\n",originaire);
+        char* pseudo=pseudo_nohashtags(received_billet->pseudo);
+        printf("<%s> ",pseudo);
+        printf("%s\n",received_billet->data+1);
+
+        count+=sizeof(received_billet->numfil)+sizeof(uint8_t)*10+sizeof(uint8_t)*10+sizeof(uint8_t)*(*received_billet->data+1);
+        /*
         printf("\nNuméro du fil: %d\n",ntohs(chars_to_uint16(server_msg[count],server_msg[count+1])));
         count+=2;
+
         printf("Originaire du fil: ");
-        for(int j=0; j<10; j++, count++){
-            printf("%c",ntohs(server_msg[count]));
-        }
-        printf("\nPseudo: ");
-        for(int j=0; j<10; j++, count++){
-            printf("%c",ntohs(server_msg[count]));
-        }
-        int datalen=ntohs(server_msg[count]);
+        char* originaire=malloc(sizeof(char)*10);
+        memcpy(originaire,server_msg+count,10);
+        printf("%s\n",originaire);
+        free(originaire);
+
+        printf("Pseudo: ");
+        char* pseudo=malloc(sizeof(char)*10);
+        memcpy(pseudo,server_msg+count,10);
+        printf("%s\n",pseudo);
+        free(pseudo);
+
+        uint8_t datalen=server_msg[count];
         count++;
-        printf("\nDatalen: %d\n",datalen);
+        printf("Datalen: %d\n",datalen);
         if(datalen==0){
             printf("Aucun message\n");
         }
         else{
             printf("Message:\n");
-            for(int j=0; j<datalen; j++, count++){
-                printf("%c",server_msg[count]);
-            }
+            char* message=malloc(sizeof(char)*datalen);
+            message=memcpy(message,server_msg+count,datalen);
+            printf("%s\n",message);
+            free(message);
         }
-        printf("\n");
+        */
     }
-
     printf("\n");
 }
 

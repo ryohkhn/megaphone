@@ -68,18 +68,53 @@ client_message *string_to_client_message(const char *buffer) {
     uint8_t datalen = buffer[sizeof(uint16_t) * 3];
 
     // Allocate memory for data, including space for the null-terminator
-    msg->data = malloc((size_t)(datalen + 1));
+    msg->data = malloc(sizeof(uint8_t)*(datalen + 1));
 
     // Copy the data from the buffer, starting after datalen
-    memcpy(msg->data, buffer + sizeof(uint16_t) * 3, (size_t)datalen);
+    memcpy(msg->data, buffer + sizeof(uint16_t) * 3, sizeof(uint8_t)*(datalen + 1));
 
     // Manually set the datalen as the first byte of the data array
     msg->data[0] = datalen;
 
-    // Add a null-terminator at the end of the data
-    msg->data[datalen + 1] = '\0';
+    return msg;
+}
+
+server_message *string_to_server_message(const char *buffer) {
+    server_message *msg = malloc(sizeof(server_message));
+
+    // Copy entete, numfil, and nb from the buffer
+    memcpy(&(msg->entete.val), buffer, sizeof(uint16_t));
+    memcpy(&(msg->numfil), buffer + sizeof(uint16_t), sizeof(uint16_t));
+    memcpy(&(msg->nb), buffer + sizeof(uint16_t) * 2, sizeof(uint16_t));
 
     return msg;
+}
+
+server_billet *string_to_server_billet(const char *buffer) {
+    server_billet *billet= malloc(sizeof(server_billet));
+
+    // Copy entete, numfil, and nb from the buffer
+    memcpy(&(billet->numfil), buffer, sizeof(uint16_t));
+
+    billet->origine = malloc(sizeof(uint8_t)*10);
+    memcpy(billet->origine, buffer+sizeof(uint16_t), sizeof(uint8_t)*10);
+
+    billet->pseudo = malloc(sizeof(uint8_t)*10);
+    memcpy(billet->pseudo, buffer+sizeof(uint16_t)*6, sizeof(uint8_t)*10);
+
+    // Extract datalen from the buffer, located right after nb
+    uint8_t datalen = buffer[sizeof(uint16_t) * 11];
+
+    // Allocate memory for data, including space for the null-terminator
+    billet->data = malloc(sizeof(uint8_t)*(datalen + 1));
+
+    // Copy the data from the buffer, starting after datalen
+    memcpy(billet->data, buffer + sizeof(uint16_t) * 11, sizeof(uint8_t)*(datalen + 1));
+
+    // Manually set the datalen as the first byte of the data array
+    billet->data[0] = datalen;
+
+    return billet;
 }
 
 char *client_message_to_string(client_message *msg) {

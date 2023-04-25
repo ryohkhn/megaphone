@@ -85,6 +85,10 @@ void poster_billet(client_message *msg, int sock_client){
   send_message(2, id, 0, numfil, sock_client);
 }
 
+void demander_liste_billet(client_message *msg, int sock_client){
+
+}
+
 void *serve(void *arg){
 
 // on cherche codereq pour creer la structure correspondante et appeler la bonne fonction
@@ -121,6 +125,7 @@ void *serve(void *arg){
                         poster_billet(received_msg, sock_client);
                         break;
                     case 3:
+                        demander_liste_billets(received_msg,sock_client);
                         break;
                     case 4:
                         printf("User wants to join fil %d\n", ntohs(received_msg->numfil));

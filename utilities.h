@@ -29,6 +29,13 @@ typedef struct client_message{
     uint8_t *data;
 } client_message;
 
+typedef struct server_billet{
+    uint16_t numfil;
+    uint8_t *origine;
+    uint8_t *pseudo;
+    uint8_t *data;
+} server_billet;
+
 typedef struct server_message{
     entete entete;
     uint16_t numfil;
@@ -61,6 +68,10 @@ entete *create_entete(uint8_t codereq,uint16_t id);
 char* client_message_to_string(client_message *msg);
 
 client_message* string_to_client_message(const char *str);
+
+server_billet* string_to_server_billet(const char *buffer);
+
+server_message *string_to_server_message(const char *buffer);
 
 uint16_t get_id_entete(uint16_t ent);
 
