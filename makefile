@@ -9,7 +9,7 @@ server.o : server.c server.h
 	$(CC) $(CFLAGS) -c server.c -o server.o
 
 client : client.o utilities.o
-	$(CC) $(CFLAGS) -o client client.o utilities.o
+	$(CC) $(CFLAGS) -o client client.o utilities.o $(LIBS)
 
 client.o : client.c client.h
 	$(CC) $(CFLAGS) -c client.c -o client.o

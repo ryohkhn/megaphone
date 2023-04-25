@@ -59,7 +59,6 @@ void poster_billet(client_message *msg, int sock_client){
 
   uint16_t numfil = ntohs(msg->numfil);
 
-  //TODO handle numfil = 0 (pick random)
   if (numfil == 0) {
        // Find the first empty fil
        for (uint16_t i = 1; i < MAX_FIL; ++i) {
@@ -85,8 +84,170 @@ void poster_billet(client_message *msg, int sock_client){
   send_message(2, id, 0, numfil, sock_client);
 }
 
-void demander_liste_billet(client_message *msg, int sock_client){
+void demander_liste_billets(client_message *msg, int sock_client){
 
+}
+
+
+void send_fil_notification(fil *current_fil) {
+    if(current_fil->head == NULL) return;
+    printf("DEBUG in send_fil_notification %d.\n", current_fil->subscribed);
+    // Create a socket for sending multicast notifications
+    int sockfd = socket(AF_INET6, SOCK_DGRAM, 0);
+    if (sockfd < 0) {
+        perror("socket");
+        return;
+    }
+
+    // Set the multicast address and port
+    struct sockaddr_in6 dest_addr;
+    memset(&dest_addr, 0, sizeof(dest_addr));
+    dest_addr.sin6_family = AF_INET6;
+    dest_addr.sin6_port = htons(MULTICAST_PORT);
+    inet_pton(AF_INET6, (char*) current_fil->addrmult, &dest_addr.sin6_addr);
+
+    // Send the notification messages
+    message_node *current_message = current_fil->head;
+    message_node *last_multicasted_message = current_fil->last_multicasted_message;
+
+    while (current_message != NULL && current_message->msg != NULL && current_message != last_multicasted_message){
+        // Send the message
+        printf("DEBUG In boucle\n");
+        ssize_t message_size = sizeof(entete) + 2 * sizeof(uint16_t);
+        uint8_t lendata = current_message->msg->data[0];
+        message_size += lendata * sizeof(uint8_t);
+
+        if (sendto(sockfd, current_message->msg, message_size, 0, (struct sockaddr *)&dest_addr, sizeof(dest_addr)) < 0) {
+            perror("sendto");
+        }
+
+        current_fil->last_multicasted_message = current_message;
+        current_message = current_message->next;
+    }
+    close(sockfd);
+}
+
+// Fonction qui vérifie un par un les fils, si il y a besoin d'envoyer
+// des messages (par exemple il y a au moins un abonné et il y a au moins un message),
+// on lance la fonction send_fil_notification
+void* send_notifications(void *arg) {
+    fil **fils = (fil **)arg;
+    // Initialise the fils
+    for (int i = 0; i < MAX_FIL; i++) {
+      fils[i]->fil_number = i;
+      fils[i]->subscribed = 0;
+   }
+
+    while (1) {
+      for (int i = 0; i < MAX_FIL; i++) {
+        if ( fils[i]->head->msg != NULL &&  fils[i]->subscribed > 0) {
+          // Send notifications for the fil
+          printf("Send fil notif to fil %d\n",i);
+          send_fil_notification(fils[i]);
+        }
+      }
+      //printf("DEBUG \n");
+      sleep(NOTIFICATION_INTERVAL);
+    }
+
+    return NULL;
+}
+
+
+void add_subscription_to_fil(client_message *received_msg, int sock_client){
+  uint16_t numfil = ntohs(received_msg->numfil);
+  int id = ntohs(received_msg->entete.val) >> 5;
+
+  //Prepare the multicast address: start at base and add numfil
+  const char *base_address = "ff02::1:1";
+  struct in6_addr multicast_address;
+
+  if (inet_pton(AF_INET6, base_address, &multicast_address) <= 0) {
+      perror("inet_pton");
+      return;
+  }
+
+  // Increment the last 32 bits by the numfil
+  uint32_t *derniers_4_octets = (uint32_t *)(&multicast_address.s6_addr32[3]);
+  *derniers_4_octets = htonl(ntohl(*derniers_4_octets) + numfil);
+
+  char address_str[INET6_ADDRSTRLEN];
+  if (inet_ntop(AF_INET6, &multicast_address, address_str, INET6_ADDRSTRLEN) == NULL) {
+      perror("inet_ntop");
+      return;
+  }
+
+  uint8_t* addresse_a_envoyer = malloc(sizeof(uint8_t) * 16);
+
+  // check if fil already has a multicast address
+  if (strlen(fils[numfil]->addrmult) > 0){
+    printf("Multicast for this fil is already initialised.\n");
+    addresse_a_envoyer = (uint8_t*) fils[numfil]->addrmult;
+  }
+  else{
+    printf("INITIALISING MULTICAST ADDR.\n");
+    // if fil does not have a multicast address then initialise it
+    int multicast_sock;
+    if((multicast_sock = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) {
+      perror("erreur socket");
+      return;
+    }
+
+    // Initialisation de l'adresse d'abonnement
+    struct sockaddr_in6 server_addr;
+    memset(&server_addr, 0, sizeof(server_addr));
+    server_addr.sin6_family = AF_INET6;
+    inet_pton(AF_INET6, address_str, &server_addr.sin6_addr);
+    server_addr.sin6_port = htons(MULTICAST_PORT); //TODO pick port?
+
+    // initialisation de l'interface locale autorisant le multicast IPv6
+    int ifindex = 0; //if_nametoindex("eth0");
+    if(setsockopt(multicast_sock, IPPROTO_IPV6, IPV6_MULTICAST_IF, &ifindex, sizeof(ifindex))) {
+      perror("erreur initialisation de l'interface locale");
+      return;
+    }
+    // bind the socket
+    bind(multicast_sock, (struct sockaddr *)&server_addr, sizeof(server_addr));
+
+    addresse_a_envoyer = malloc(sizeof(uint8_t) * 16); // Allocate memory for the address
+    memcpy(addresse_a_envoyer, server_addr.sin6_addr.s6_addr, sizeof(uint8_t) * 16); // Copy the address bytes
+
+    // Allocate memory for fils[numfil]->addrmult if it's not already allocated
+    if (fils[numfil]->addrmult == NULL) {
+      fils[numfil]->addrmult = malloc(sizeof(uint8_t) * 16);
+    }
+
+    // Copy the content of addresse_a_envoyer into fils[numfil]->addrmult
+    memcpy(fils[numfil]->addrmult, server_addr.sin6_addr.s6_addr, sizeof(uint8_t) * 16);
+  }
+
+  // update fil subscription counter
+  fils[numfil]->subscribed += 1;
+
+  //sending response to client
+  server_subscription_message * msg = malloc(sizeof(server_subscription_message));
+  msg->entete.val = create_entete(4,id)->val;
+  msg->numfil = htons(numfil);
+  msg->nb = htons(MULTICAST_PORT);
+  msg->addrmult = malloc(sizeof(uint8_t) * 16);
+  memcpy(msg->addrmult, addresse_a_envoyer, sizeof(uint8_t) * 16);
+
+  print_bits(msg->entete.val);
+  print_bits(msg->numfil);
+  print_bits(msg->nb);
+  for (int i = 0; i < 16; i++) {
+    for (int j = 7; j >= 0; j--) {
+      printf("%d", (msg->addrmult[i] >> j) & 1);
+    }
+    printf("%s", (i < 15) ? ":" : "\n");
+  }
+
+  // Serialize the client_message structure and send to clientfd
+  char *serialized_msg = server_subscription_message_to_string(msg);
+  size_t serialized_msg_size = sizeof(uint8_t) * 22;
+  int nboctet = send(sock_client, serialized_msg, serialized_msg_size, 0);
+  printf("DEBUG SENT %d OCTETS\n", nboctet);
+  if(nboctet <= 0)perror("send");
 }
 
 void *serve(void *arg){
@@ -99,6 +260,7 @@ void *serve(void *arg){
 
         if (nb_octets < 0) {
             perror("recv serve");
+            exit(1);
             // gestion d'erreur
         } else if (nb_octets == 0) {
             printf("la connexion a été fermée\n");
@@ -119,7 +281,6 @@ void *serve(void *arg){
 
                 client_message *received_msg = string_to_client_message(buffer);
 
-
                 switch (codereq) {
                     case 2:
                         poster_billet(received_msg, sock_client);
@@ -129,6 +290,7 @@ void *serve(void *arg){
                         break;
                     case 4:
                         printf("User wants to join fil %d\n", ntohs(received_msg->numfil));
+                        add_subscription_to_fil(received_msg, sock_client);
                         break;
                     case 5:
                         break;
@@ -139,40 +301,7 @@ void *serve(void *arg){
             }
         }
     }
-
-
-    /*
-
-    int sock=*((int *) arg);
-    char buf[SIZE_BUF];
-    memset(buf,0,sizeof(buf));
-
-    int recu=recv(sock,buf,SIZE_BUF,0);
-    if(recu<0){
-        perror("recv");
-        close(sock);
-        int *ret=malloc(sizeof(int));
-        *ret=1;
-        pthread_exit(ret);
-    }
-
-    if(recu==0){
-        fprintf(stderr,"send du client nul\n");
-        close(sock);
-        return NULL;
-    }
-
-    printf("recu : %s\n",buf);
-    char c='o';
-    int ecrit=send(sock,&c,1,0);
-    if(ecrit<=0)
-        perror("send");
-
-
-    close(sock);
     return NULL;
-     */
-     return NULL;
 }
 
 int main(){
@@ -226,6 +355,20 @@ int main(){
         exit(EXIT_FAILURE);
     }
 
+    // Initialise the fils
+    fils = malloc(sizeof(fil *) * MAX_FIL);
+    for (int i = 0; i < MAX_FIL; i++) {
+       fils[i] = malloc(sizeof(fil));
+       fils[i]->fil_number = i;
+       fils[i]->head = malloc(sizeof(message_node));
+       fils[i]->last_multicasted_message = malloc(sizeof(message_node));
+       fils[i]->subscribed = 0;
+       fils[i]->addrmult = malloc(sizeof(char) * 16);
+   }
+
+    // Start the notification thread
+    pthread_t notification_thread;
+    pthread_create(&notification_thread, NULL, send_notifications, (void *)fils);
 
     while(running){
         struct sockaddr_in6 addrclient;
@@ -250,9 +393,10 @@ int main(){
                    htons(addrclient.sin6_port));
         }
     }
-    printf("Closing sock\n");
+    pthread_cancel(notification_thread);
 
     //*** fermeture socket serveur ***
+    printf("Closing sock\n");
     close(sock);
 
     return 0;

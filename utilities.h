@@ -6,7 +6,11 @@
 #include <string.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <pthread.h>
 
+
+#define NOTIFICATION_INTERVAL 5
+#define MULTICAST_PORT 49152
 #define MAX_FIL 65535
 
 typedef struct entete{
@@ -42,6 +46,13 @@ typedef struct server_message{
     uint16_t nb;
 } server_message;
 
+typedef struct server_subscription_message{
+  entete entete;
+  uint16_t numfil;
+  uint16_t nb;
+  uint8_t *addrmult;
+} server_subscription_message;
+
 // List of fils
 typedef struct message_node {
     client_message *msg;
@@ -53,6 +64,9 @@ typedef struct message_node {
 typedef struct fil {
     uint16_t fil_number;
     message_node *head;
+    message_node *last_multicasted_message;
+    char* addrmult;
+    int subscribed;
 } fil;
 
 void testMalloc(void *ptr);
@@ -67,11 +81,17 @@ entete *create_entete(uint8_t codereq,uint16_t id);
 
 char* client_message_to_string(client_message *msg);
 
+char* server_subscription_message_to_string(server_subscription_message *msg);
+
 client_message* string_to_client_message(const char *str);
+
 
 server_billet* string_to_server_billet(const char *buffer);
 
 server_message *string_to_server_message(const char *buffer);
+
+server_subscription_message *string_to_server_subscription_message(const char *buffer);
+
 
 uint16_t get_id_entete(uint16_t ent);
 

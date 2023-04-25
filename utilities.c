@@ -89,6 +89,45 @@ server_message *string_to_server_message(const char *buffer) {
 
     return msg;
 }
+char* server_subscription_message_to_string(server_subscription_message *msg){
+  size_t buffer_size = sizeof(uint8_t) * 22;
+  char *buffer = malloc(buffer_size);
+
+  memcpy(buffer, &(msg->entete.val), sizeof(uint16_t));
+  memcpy(buffer + sizeof(uint16_t), &(msg->numfil), sizeof(uint16_t));
+  memcpy(buffer + sizeof(uint16_t) * 2, &(msg->nb), sizeof(uint16_t));
+  memcpy(buffer + sizeof(uint16_t) * 3, msg->addrmult, sizeof(uint8_t) * 16);
+
+  return buffer;
+}
+
+server_subscription_message *string_to_server_subscription_message(const char *buffer) {
+    server_subscription_message *msg = malloc(sizeof(server_subscription_message));
+
+    // Allocate memory for the address
+    msg->addrmult = malloc(sizeof(uint8_t) * 16);
+
+    // Copy entete, numfil, and nb from the buffer
+    memcpy(&(msg->entete.val), buffer, sizeof(uint16_t));
+    memcpy(&(msg->numfil), buffer + sizeof(uint16_t), sizeof(uint16_t));
+    memcpy(&(msg->nb), buffer + sizeof(uint16_t) * 2, sizeof(uint16_t));
+
+    // Copy the address from buffer
+    memcpy(msg->addrmult, buffer + sizeof(uint16_t) * 3, (sizeof(uint8_t) * 16));
+
+    print_bits(msg->entete.val);
+    print_bits(msg->numfil);
+    print_bits(msg->nb);
+    printf("BUFFER: \n");
+    for (int i = 0; i < 16; i++) {
+      for (int j = 7; j >= 0; j--) {
+        printf("%d", (msg->addrmult[i] >> j) & 1);
+      }
+      printf("%s", (i < 15) ? ":" : "\n");
+    }
+
+    return msg;
+}
 
 server_billet *string_to_server_billet(const char *buffer) {
     server_billet *billet= malloc(sizeof(server_billet));
@@ -160,7 +199,7 @@ char** retrieve_messages_from_fil(fil *fils[], uint16_t fil_number) {
     message_node *current = current_fil->head;
     char **messages = malloc(sizeof(char *) * 1024);
     int index = 0;
-    while (current != NULL) {
+    while (current != NULL && current->msg != NULL) {
         messages[index] = strdup((char *)(current->msg->data) + 1); // Assuming the data starts at msg.data[1]
         index++;
         current = current->next;

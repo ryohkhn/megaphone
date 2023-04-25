@@ -10,7 +10,7 @@ inscription *create_inscription(char pseudo[]){
         strncpy(pseudo,new_pseudo,10);
     }
 
-    inscription *inscription_message=malloc(sizeof(inscription));
+    inscription *inscription_message = malloc(sizeof(inscription));
     testMalloc(inscription_message);
 
     entete *entete=create_entete(1,0);
@@ -59,6 +59,9 @@ void send_message(res_inscription *i,char *data,int nbfil){
         printf("serveur off\n");
         exit(0);
     }
+    printf("Entete: ");
+    print_bits(ntohs(server_msg[0]));
+    printf("Numfil = %d\n", ntohs(server_msg[1]));
 }
 
 char* pseudo_nohashtags(uint8_t* pseudo){
@@ -219,6 +222,69 @@ res_inscription* send_inscription(inscription *i){
     return res;
 }
 
+void *listen_multicast_messages(void *arg) {
+    // Extract the multicast address from the argument
+    uint8_t *multicast_address = (uint8_t *)arg;
+
+    // Create a socket for listening to multicast messages
+    int sockfd = socket(AF_INET6, SOCK_DGRAM, 0);
+    if (sockfd < 0) {
+        perror("socket");
+        return NULL;
+    }
+
+    // Join the multicast group
+    struct ipv6_mreq mreq;
+    memcpy(&mreq.ipv6mr_multiaddr, multicast_address, sizeof(struct in6_addr));
+    mreq.ipv6mr_interface = 0; // Let the system choose the interface
+
+    if (setsockopt(sockfd, IPPROTO_IPV6, IPV6_ADD_MEMBERSHIP, &mreq, sizeof(mreq)) < 0) {
+        perror("setsockopt");
+        close(sockfd);
+        return NULL;
+    }
+
+    // Bind the socket to the multicast port
+    struct sockaddr_in6 local_addr;
+    memset(&local_addr, 0, sizeof(local_addr));
+    local_addr.sin6_family = AF_INET6;
+    local_addr.sin6_addr = in6addr_any;
+    local_addr.sin6_port = htons(MULTICAST_PORT);
+
+    if (bind(sockfd, (struct sockaddr *)&local_addr, sizeof(local_addr)) < 0) {
+        perror("bind");
+        close(sockfd);
+        return NULL;
+    }
+
+    // Receive and process messages
+    while (1) {
+        // lendata -> 1 octet, donc le max est 255
+        char buffer[262];
+        struct sockaddr_in6 src_addr;
+        socklen_t addrlen = sizeof(src_addr);
+
+        ssize_t nbytes = recvfrom(sockfd, buffer, sizeof(buffer), 0, (struct sockaddr *)&src_addr, &addrlen);
+        if (nbytes < 0) {
+            perror("recvfrom");
+            break;
+        }
+        // TODO serialiser le message dans server.c ligne 116
+        // TODO deserialiser le message ici
+        // TODO ajouter pseudo dans les messages postees
+        // TODO ajouter originaire dans le fil cree
+
+        // Process the received message
+        for(int i = 0; i < 8; i++)
+          print_8bits(buffer[i]);
+
+    }
+
+    close(sockfd);
+    return NULL;
+}
+
+
 void subscribe_to_fil(uint16_t fil_number) {
     client_message *msg = malloc(sizeof(client_message));
     msg->entete.val=create_entete(4,user_id)->val;
@@ -230,10 +296,32 @@ void subscribe_to_fil(uint16_t fil_number) {
         exit(3);
     }
 
-    //TODO receive response from server with the multicast address
+    // receive response from server with the multicast address
+    char *server_msg = malloc(sizeof(char) * 22); // 22 octets
+    memset(server_msg,0,sizeof(char) * 22);
+
+    ssize_t recu=recv(clientfd,server_msg,sizeof(char) * 22 ,0);
+    printf("retour du serveur reçu\n");
+    if(recu<0){
+        perror("erreur lecture");
+        exit(4);
+    }
+    if(recu==0){
+        printf("serveur off\n");
+        exit(0);
+    }
+    server_subscription_message *received_msg = string_to_server_subscription_message(server_msg);
+
 
     // TODO set up a separate thread or process
     //    to listen for messages on that address
+
+    pthread_t notification_thread;
+    int rc = pthread_create(&notification_thread, NULL, listen_multicast_messages, (void *)received_msg->addrmult);
+    if (rc != 0) {
+        perror("pthread_create");
+        exit(1);
+    }
 
 }
 
