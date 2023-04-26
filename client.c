@@ -1,25 +1,21 @@
 #include "client.h"
 
 inscription *create_inscription(char pseudo[]){
+    char new_pseudo[10];
     if(strlen(pseudo)!=10){
-        char new_pseudo[10];
         strncpy(new_pseudo,pseudo,10);
         for(size_t i=strlen(new_pseudo); i<10; i++){
             new_pseudo[i]='#';
         }
-        strncpy(pseudo,new_pseudo,10);
     }
 
     inscription *inscription_message = malloc(sizeof(inscription));
     testMalloc(inscription_message);
 
-    entete *entete=create_entete(1,0);
-    testMalloc(entete);
+    inscription_message->entete.val=create_entete(1,0)->val;
 
-    memcpy(&(inscription_message->entete),entete,sizeof(*entete));
-    strncpy(inscription_message->pseudo,pseudo,10);
+    strncpy(inscription_message->pseudo,new_pseudo,10);
 
-    free(entete);
     return inscription_message;
 }
 
@@ -104,40 +100,10 @@ void print_n_tickets(char *server_msg,uint16_t numfil){
         char* originaire=pseudo_nohashtags(received_billet->origine);
         printf("Originaire du fil: %s\n\n",originaire);
         char* pseudo=pseudo_nohashtags(received_billet->pseudo);
-        printf("<%s> ",pseudo);
+        printf("\033[0;31m<%s>\033[0m ",pseudo);
         printf("%s\n",received_billet->data+1);
 
         count+=sizeof(received_billet->numfil)+sizeof(uint8_t)*10+sizeof(uint8_t)*10+sizeof(uint8_t)*(*received_billet->data+1);
-        /*
-        printf("\nNuméro du fil: %d\n",ntohs(chars_to_uint16(server_msg[count],server_msg[count+1])));
-        count+=2;
-
-        printf("Originaire du fil: ");
-        char* originaire=malloc(sizeof(char)*10);
-        memcpy(originaire,server_msg+count,10);
-        printf("%s\n",originaire);
-        free(originaire);
-
-        printf("Pseudo: ");
-        char* pseudo=malloc(sizeof(char)*10);
-        memcpy(pseudo,server_msg+count,10);
-        printf("%s\n",pseudo);
-        free(pseudo);
-
-        uint8_t datalen=server_msg[count];
-        count++;
-        printf("Datalen: %d\n",datalen);
-        if(datalen==0){
-            printf("Aucun message\n");
-        }
-        else{
-            printf("Message:\n");
-            char* message=malloc(sizeof(char)*datalen);
-            message=memcpy(message,server_msg+count,datalen);
-            printf("%s\n",message);
-            free(message);
-        }
-        */
     }
     printf("\n");
 }
@@ -240,14 +206,14 @@ void *listen_multicast_messages(void *arg) {
     mreq.ipv6mr_interface = 0; // Let the system choose the interface
 
 
-    if (setsockopt(sockfd, IPPROTO_IPV6, IPV6_ADD_MEMBERSHIP, &mreq, sizeof(mreq)) < 0) {
-      perror("setsockopt(IPV6_ADD_MEMBERSHIP)");
-      close(sockfd);
-      return NULL;
+    if(setsockopt(sockfd,IPPROTO_IPV6,IPV6_ADD_MEMBERSHIP,&mreq,sizeof(mreq))<0){
+        perror("setsockopt(IPV6_ADD_MEMBERSHIP)");
+        close(sockfd);
+        return NULL;
     }
 
-    int enable = 1;
-    if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(enable)) < 0) {
+    int enable=1;
+    if(setsockopt(sockfd,SOL_SOCKET,SO_REUSEADDR,&enable,sizeof(enable))<0){
         perror("setsockopt(SO_REUSEADDR)");
         close(sockfd);
         return NULL;
@@ -255,12 +221,12 @@ void *listen_multicast_messages(void *arg) {
 
     // Bind the socket to the multicast port
     struct sockaddr_in6 local_addr;
-    memset(&local_addr, 0, sizeof(local_addr));
-    local_addr.sin6_family = AF_INET6;
-    local_addr.sin6_addr = in6addr_any;
-    local_addr.sin6_port = htons(MULTICAST_PORT);
+    memset(&local_addr,0,sizeof(local_addr));
+    local_addr.sin6_family=AF_INET6;
+    local_addr.sin6_addr=in6addr_any;
+    local_addr.sin6_port=htons(MULTICAST_PORT);
 
-    if (bind(sockfd, (struct sockaddr *)&local_addr, sizeof(local_addr)) < 0) {
+    if(bind(sockfd,(struct sockaddr *) &local_addr,sizeof(local_addr))<0){
         perror("bind");
         close(sockfd);
         return NULL;
@@ -268,26 +234,26 @@ void *listen_multicast_messages(void *arg) {
 
 
     // Receive and process messages
-    while (1) {
+    while(1){
         char buffer[262];
         struct sockaddr_in6 src_addr;
-        socklen_t addrlen = sizeof(src_addr);
+        socklen_t addrlen=sizeof(src_addr);
 
-        ssize_t nbytes = recvfrom(sockfd, buffer, sizeof(buffer), 0, (struct sockaddr *)&src_addr, &addrlen);
-        if (nbytes < 0) {
+        ssize_t nbytes=recvfrom(sockfd,buffer,sizeof(buffer),0,(struct sockaddr *) &src_addr,&addrlen);
+        if(nbytes<0){
             perror("recvfrom");
             break;
         }
 
         // deserializer le message recu
-        notification *notification = string_to_notification(buffer);
+        notification *notification=string_to_notification(buffer);
 
         // Process the received message
-        printf("Nouveau post sur le fil %d!\n", ntohs(notification->numfil));
+        printf("Nouveau post sur le fil %d!\n",ntohs(notification->numfil));
 
-        char* pseudo=pseudo_nohashtags(notification->pseudo);
+        char *pseudo=pseudo_nohashtags(notification->pseudo);
         printf("<%s> ",pseudo);
-        printf("%s\n",notification->data+1);
+        printf("%s\n",notification->data);
 
     }
 
@@ -385,7 +351,7 @@ void print_ascii(){
 }
 
 res_inscription *test(){
-    char pseudo[]="testlucas";
+    char pseudo[]="testOui";
     inscription *i=create_inscription(pseudo);
     return send_inscription(i);
 }

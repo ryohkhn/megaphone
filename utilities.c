@@ -56,22 +56,6 @@ void print_inscription_bits(inscription *msg){
     printf("\n");
 }
 
-char* pseudo_from_id(int id){
-  list_client * current_client = clients;
-  char* pseudo = "##########";
-  if(current_client == NULL){
-    printf("Pas de clients!\n");
-    return pseudo;
-  }
-  else{
-    while (current_client->suivant != NULL) {
-        if(current_client->id == id) break;
-        current_client = current_client->suivant;
-    }
-    printf("Pseudo = %s\n", current_client->pseudo);
-    return current_client->pseudo;
-  }
-}
 
 client_message *string_to_client_message(const char *buffer) {
     client_message *msg = malloc(sizeof(client_message));
@@ -106,16 +90,17 @@ server_message *string_to_server_message(const char *buffer) {
 
     return msg;
 }
-char* server_subscription_message_to_string(server_subscription_message *msg){
-  size_t buffer_size = sizeof(uint8_t) * 22;
-  char *buffer = malloc(buffer_size);
 
-  memcpy(buffer, &(msg->entete.val), sizeof(uint16_t));
-  memcpy(buffer + sizeof(uint16_t), &(msg->numfil), sizeof(uint16_t));
-  memcpy(buffer + sizeof(uint16_t) * 2, &(msg->nb), sizeof(uint16_t));
-  memcpy(buffer + sizeof(uint16_t) * 3, msg->addrmult, sizeof(uint8_t) * 16);
+char *server_subscription_message_to_string(server_subscription_message *msg){
+    size_t buffer_size=sizeof(uint8_t)*22;
+    char *buffer=malloc(buffer_size);
 
-  return buffer;
+    memcpy(buffer,&(msg->entete.val),sizeof(uint16_t));
+    memcpy(buffer+sizeof(uint16_t),&(msg->numfil),sizeof(uint16_t));
+    memcpy(buffer+sizeof(uint16_t)*2,&(msg->nb),sizeof(uint16_t));
+    memcpy(buffer+sizeof(uint16_t)*3,msg->addrmult,sizeof(uint8_t)*16);
+
+    return buffer;
 }
 
 server_subscription_message *string_to_server_subscription_message(const char *buffer) {
@@ -175,72 +160,53 @@ char *client_message_to_string(client_message *msg) {
 }
 
 
-notification *string_to_notification(const char* buffer){
-  notification *notification= malloc(sizeof(server_billet));
+notification *string_to_notification(const char *buffer){
+    notification *notification=malloc(sizeof(server_billet));
 
-  // Copy entete and numfil from the buffer
-  memcpy(&(notification->entete), buffer, sizeof(uint16_t));
-  memcpy(&(notification->numfil), buffer + sizeof(uint16_t), sizeof(uint16_t));
+    // Copy entete and numfil from the buffer
+    memcpy(&(notification->entete),buffer,sizeof(uint16_t));
+    memcpy(&(notification->numfil),buffer+sizeof(uint16_t),sizeof(uint16_t));
 
-  // Allocate memory for pseudo
-  notification->pseudo = calloc(10, sizeof(char));
-  memcpy(notification->pseudo, buffer+sizeof(uint16_t) * 2, sizeof(uint8_t)*10);
+    // Allocate memory for pseudo
+    notification->pseudo=calloc(10,sizeof(char));
+    memcpy(notification->pseudo,buffer+sizeof(uint16_t)*2,sizeof(uint8_t)*10);
 
-  // Allocate memory for data
-  notification->data = calloc(20, sizeof(char));
-  memcpy(notification->data , buffer + sizeof(uint16_t) * 2 + sizeof(char) * 10, 20);
+    // Allocate memory for data
+    notification->data=calloc(20,sizeof(char));
+    memcpy(notification->data,buffer+sizeof(uint16_t)*2+sizeof(char)*10,20);
 
-  return notification;
+    return notification;
 }
-/*
-typedef struct notification{
-  entete entete;
-  uint16_t numfil;
-  uint8_t *pseudo;
-  uint8_t *data;
-} notification;
-*/
-char *client_message_to_notification(client_message *msg) {
-    size_t buffer_size = sizeof(uint8_t) * 34;
-    char *buffer = malloc(buffer_size);
 
-    memcpy(buffer, &(msg->entete.val), sizeof(uint16_t));
-    memcpy(buffer + sizeof(uint16_t), &(msg->numfil), sizeof(uint16_t));
-
-    // Add pseudo
-    int id = ntohs(msg->entete.val) >> 5;
-    char* pseudo = pseudo_from_id(id);
-    memcpy(buffer + sizeof(uint16_t) * 2, pseudo, sizeof(char) * 10);
-
-    // Add data
-    uint8_t datalen = msg->data[0];
-    if(datalen > 20) datalen = 20;
-    memcpy(buffer + sizeof(uint16_t) * 2 + sizeof(char) * 10, msg->data, datalen);
-
-    return buffer;
-}
 
 client_message *copy_client_message(client_message *msg) {
-    client_message *copy = (client_message *)malloc(sizeof(client_message));
+    client_message *copy = malloc(sizeof(client_message));
     copy->entete = msg->entete;
     copy->numfil = msg->numfil;
     copy->nb = msg->nb;
     uint8_t datalen = msg->data[0];
-    copy->data = (uint8_t *)malloc(sizeof(uint8_t) * (datalen + 1));
+    copy->data = malloc(sizeof(uint8_t) * (datalen + 1));
     memcpy(copy->data, msg->data, sizeof(uint8_t) * (datalen + 1));
     return copy;
 }
 
 void add_message_to_fil(fil *fils[], client_message *msg, uint16_t fil_number) {
     fil *current_fil = fils[fil_number];
+    // TODO changer le comportement quand le fil n'existe pas
     if (current_fil == NULL) {
-        current_fil = (fil *)malloc(sizeof(fil));
+        current_fil = malloc(sizeof(fil));
         current_fil->fil_number = fil_number;
         current_fil->head = NULL;
         fils[fil_number] = current_fil;
     }
-    message_node *new_node = (message_node *)malloc(sizeof(message_node));
-    new_node->msg = msg;
+    message_node *new_node = malloc(sizeof(message_node));
+    new_node->msg=malloc(sizeof(message));
+    new_node->msg->datalen=*msg->data;
+    new_node->msg->id=get_id_entete(msg->entete.val);
+
+    new_node->msg->data=malloc(sizeof(uint8_t)*new_node->msg->datalen);
+    memcpy(new_node->msg->data,msg->data+sizeof(uint8_t),new_node->msg->datalen);
+
     new_node->next = current_fil->head;
     current_fil->head = new_node;
 }
@@ -252,7 +218,12 @@ char** retrieve_messages_from_fil(fil *fils[], uint16_t fil_number) {
     char **messages = malloc(sizeof(char *) * 1024);
     int index = 0;
     while (current != NULL && current->msg != NULL) {
-        messages[index] = strdup((char *)(current->msg->data) + 1); // Assuming the data starts at msg.data[1]
+        messages[index] = strdup((char *)(current->msg->data)); // Assuming the data starts at msg.data[1]
+        /*
+        printf("Message: %s\n",current->msg->data);
+        printf("Message de l'id: %d\n",current->msg->id);
+        printf("Datalen : %d\n",current->msg->datalen);
+        */
         index++;
         current = current->next;
     }

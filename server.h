@@ -10,8 +10,9 @@
 
 uint16_t id_dernier_client = 0;
 
+list_client * clients;
 
-// liste des listes chainees pour les messages postes dans un fil
+// Liste des listes chainees pour les messages postes dans un fil
 fil **fils;
 
 int running = 1;
