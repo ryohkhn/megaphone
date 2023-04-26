@@ -56,6 +56,23 @@ void print_inscription_bits(inscription *msg){
     printf("\n");
 }
 
+char* pseudo_from_id(int id){
+  list_client * current_client = clients;
+  char* pseudo = "##########";
+  if(current_client == NULL){
+    printf("Pas de clients!\n");
+    return pseudo;
+  }
+  else{
+    while (current_client->suivant != NULL) {
+        if(current_client->id == id) break;
+        current_client = current_client->suivant;
+    }
+    printf("Pseudo = %s\n", current_client->pseudo);
+    return current_client->pseudo;
+  }
+}
+
 client_message *string_to_client_message(const char *buffer) {
     client_message *msg = malloc(sizeof(client_message));
 
@@ -115,17 +132,6 @@ server_subscription_message *string_to_server_subscription_message(const char *b
     // Copy the address from buffer
     memcpy(msg->addrmult, buffer + sizeof(uint16_t) * 3, (sizeof(uint8_t) * 16));
 
-    print_bits(msg->entete.val);
-    print_bits(msg->numfil);
-    print_bits(msg->nb);
-    printf("BUFFER: \n");
-    for (int i = 0; i < 16; i++) {
-      for (int j = 7; j >= 0; j--) {
-        printf("%d", (msg->addrmult[i] >> j) & 1);
-      }
-      printf("%s", (i < 15) ? ":" : "\n");
-    }
-
     return msg;
 }
 
@@ -164,6 +170,52 @@ char *client_message_to_string(client_message *msg) {
     memcpy(buffer + sizeof(uint16_t), &(msg->numfil), sizeof(uint16_t));
     memcpy(buffer + sizeof(uint16_t) * 2, &(msg->nb), sizeof(uint16_t));
     memcpy(buffer + sizeof(uint16_t) * 3, msg->data, 1 + msg->data[0]);
+
+    return buffer;
+}
+
+
+notification *string_to_notification(const char* buffer){
+  notification *notification= malloc(sizeof(server_billet));
+
+  // Copy entete and numfil from the buffer
+  memcpy(&(notification->entete), buffer, sizeof(uint16_t));
+  memcpy(&(notification->numfil), buffer + sizeof(uint16_t), sizeof(uint16_t));
+
+  // Allocate memory for pseudo
+  notification->pseudo = calloc(10, sizeof(char));
+  memcpy(notification->pseudo, buffer+sizeof(uint16_t) * 2, sizeof(uint8_t)*10);
+
+  // Allocate memory for data
+  notification->data = calloc(20, sizeof(char));
+  memcpy(notification->data , buffer + sizeof(uint16_t) * 2 + sizeof(char) * 10, 20);
+
+  return notification;
+}
+/*
+typedef struct notification{
+  entete entete;
+  uint16_t numfil;
+  uint8_t *pseudo;
+  uint8_t *data;
+} notification;
+*/
+char *client_message_to_notification(client_message *msg) {
+    size_t buffer_size = sizeof(uint8_t) * 34;
+    char *buffer = malloc(buffer_size);
+
+    memcpy(buffer, &(msg->entete.val), sizeof(uint16_t));
+    memcpy(buffer + sizeof(uint16_t), &(msg->numfil), sizeof(uint16_t));
+
+    // Add pseudo
+    int id = ntohs(msg->entete.val) >> 5;
+    char* pseudo = pseudo_from_id(id);
+    memcpy(buffer + sizeof(uint16_t) * 2, pseudo, sizeof(char) * 10);
+
+    // Add data
+    uint8_t datalen = msg->data[0];
+    if(datalen > 20) datalen = 20;
+    memcpy(buffer + sizeof(uint16_t) * 2 + sizeof(char) * 10, msg->data, datalen);
 
     return buffer;
 }

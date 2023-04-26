@@ -40,6 +40,13 @@ typedef struct server_billet{
     uint8_t *data;
 } server_billet;
 
+typedef struct notification{
+  entete entete;
+  uint16_t numfil;
+  uint8_t *pseudo;
+  uint8_t *data;
+} notification;
+
 typedef struct server_message{
     entete entete;
     uint16_t numfil;
@@ -69,6 +76,16 @@ typedef struct fil {
     int subscribed;
 } fil;
 
+typedef struct list_client{
+    unsigned long id;
+    char * pseudo;
+    struct list_client * suivant;
+}list_client;
+
+
+list_client * clients;
+// possibilité d'optimisation en utilisant un tableau au lieu d'une liste.
+
 void testMalloc(void *ptr);
 
 void print_8bits(uint8_t n);
@@ -79,12 +96,13 @@ void print_inscription_bits(inscription *msg);
 
 entete *create_entete(uint8_t codereq,uint16_t id);
 
+char* pseudo_from_id(int id);
+
 char* client_message_to_string(client_message *msg);
 
 char* server_subscription_message_to_string(server_subscription_message *msg);
 
 client_message* string_to_client_message(const char *str);
-
 
 server_billet* string_to_server_billet(const char *buffer);
 
@@ -92,6 +110,9 @@ server_message *string_to_server_message(const char *buffer);
 
 server_subscription_message *string_to_server_subscription_message(const char *buffer);
 
+char *client_message_to_notification(client_message *msg);
+
+notification *string_to_notification(const char* buffer);
 
 uint16_t get_id_entete(uint16_t ent);
 

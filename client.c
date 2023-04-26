@@ -222,6 +222,7 @@ res_inscription* send_inscription(inscription *i){
     return res;
 }
 
+
 void *listen_multicast_messages(void *arg) {
     // Extract the multicast address from the argument
     uint8_t *multicast_address = (uint8_t *)arg;
@@ -238,8 +239,16 @@ void *listen_multicast_messages(void *arg) {
     memcpy(&mreq.ipv6mr_multiaddr, multicast_address, sizeof(struct in6_addr));
     mreq.ipv6mr_interface = 0; // Let the system choose the interface
 
+
     if (setsockopt(sockfd, IPPROTO_IPV6, IPV6_ADD_MEMBERSHIP, &mreq, sizeof(mreq)) < 0) {
-        perror("setsockopt");
+      perror("setsockopt(IPV6_ADD_MEMBERSHIP)");
+      close(sockfd);
+      return NULL;
+    }
+
+    int enable = 1;
+    if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(enable)) < 0) {
+        perror("setsockopt(SO_REUSEADDR)");
         close(sockfd);
         return NULL;
     }
@@ -257,9 +266,9 @@ void *listen_multicast_messages(void *arg) {
         return NULL;
     }
 
+
     // Receive and process messages
     while (1) {
-        // lendata -> 1 octet, donc le max est 255
         char buffer[262];
         struct sockaddr_in6 src_addr;
         socklen_t addrlen = sizeof(src_addr);
@@ -269,14 +278,16 @@ void *listen_multicast_messages(void *arg) {
             perror("recvfrom");
             break;
         }
-        // TODO serialiser le message dans server.c ligne 116
-        // TODO deserialiser le message ici
-        // TODO ajouter pseudo dans les messages postees
-        // TODO ajouter originaire dans le fil cree
+
+        // deserializer le message recu
+        notification *notification = string_to_notification(buffer);
 
         // Process the received message
-        for(int i = 0; i < 8; i++)
-          print_8bits(buffer[i]);
+        printf("Nouveau post sur le fil %d!\n", ntohs(notification->numfil));
+
+        char* pseudo=pseudo_nohashtags(notification->pseudo);
+        printf("<%s> ",pseudo);
+        printf("%s\n",notification->data+1);
 
     }
 
@@ -313,9 +324,7 @@ void subscribe_to_fil(uint16_t fil_number) {
     server_subscription_message *received_msg = string_to_server_subscription_message(server_msg);
 
 
-    // TODO set up a separate thread or process
-    //    to listen for messages on that address
-
+    //  set up a separate thread to listen for messages on the multicast address
     pthread_t notification_thread;
     int rc = pthread_create(&notification_thread, NULL, listen_multicast_messages, (void *)received_msg->addrmult);
     if (rc != 0) {

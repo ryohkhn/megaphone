@@ -27,7 +27,7 @@ void inscription_client(char * pseudo, int sock_client){
         current_client->id = id_dernier_client;
         current_client->pseudo = malloc(sizeof(char) * strlen(pseudo));
         current_client->pseudo = pseudo;
-        printf("Created client with pseudo: %s and id: %ld\n", current_client->pseudo, current_client->id);
+        printf("Created first client with pseudo: %s and id: %ld\n", current_client->pseudo, current_client->id);
     }
     else {
         // on va au dernier client de la liste
@@ -41,9 +41,11 @@ void inscription_client(char * pseudo, int sock_client){
 
         // on modifie le suivant
         current_client->id = id_dernier_client;
-        current_client->pseudo = malloc(sizeof(char) * strlen(pseudo));
-        current_client->pseudo = pseudo;
+        current_client->pseudo = malloc(sizeof(char) * (strlen(pseudo) + 1));
+        strncpy(current_client->pseudo, pseudo, strlen(pseudo));
+        current_client->pseudo[strlen(pseudo)] = '\0';
         printf("Created client with pseudo: %s and id: %ld\n", current_client->pseudo, current_client->id);
+
     }
 
     // on envoie le message de l'inscription
@@ -91,7 +93,7 @@ void demander_liste_billets(client_message *msg, int sock_client){
 
 void send_fil_notification(fil *current_fil) {
     if(current_fil->head == NULL) return;
-    printf("DEBUG in send_fil_notification %d.\n", current_fil->subscribed);
+
     // Create a socket for sending multicast notifications
     int sockfd = socket(AF_INET6, SOCK_DGRAM, 0);
     if (sockfd < 0) {
@@ -113,11 +115,16 @@ void send_fil_notification(fil *current_fil) {
     while (current_message != NULL && current_message->msg != NULL && current_message != last_multicasted_message){
         // Send the message
         printf("DEBUG In boucle\n");
-        ssize_t message_size = sizeof(entete) + 2 * sizeof(uint16_t);
-        uint8_t lendata = current_message->msg->data[0];
-        message_size += lendata * sizeof(uint8_t);
 
-        if (sendto(sockfd, current_message->msg, message_size, 0, (struct sockaddr *)&dest_addr, sizeof(dest_addr)) < 0) {
+        char *serialized_msg = client_message_to_notification(current_message->msg);
+        size_t serialized_msg_size = sizeof(uint8_t) * 34;
+
+        print_bits(current_message->msg->entete.val);
+        print_bits(current_message->msg->numfil);
+        print_bits(current_message->msg->nb);
+        printf("Message: %c\n", *(current_message->msg->data + 1));
+
+        if (sendto(sockfd, serialized_msg, serialized_msg_size, 0, (struct sockaddr *)&dest_addr, sizeof(dest_addr)) < 0) {
             perror("sendto");
         }
 
@@ -132,21 +139,15 @@ void send_fil_notification(fil *current_fil) {
 // on lance la fonction send_fil_notification
 void* send_notifications(void *arg) {
     fil **fils = (fil **)arg;
-    // Initialise the fils
-    for (int i = 0; i < MAX_FIL; i++) {
-      fils[i]->fil_number = i;
-      fils[i]->subscribed = 0;
-   }
 
     while (1) {
       for (int i = 0; i < MAX_FIL; i++) {
         if ( fils[i]->head->msg != NULL &&  fils[i]->subscribed > 0) {
           // Send notifications for the fil
-          printf("Send fil notif to fil %d\n",i);
+          printf("Sending fil notif to fil %d\n",i);
           send_fil_notification(fils[i]);
         }
       }
-      //printf("DEBUG \n");
       sleep(NOTIFICATION_INTERVAL);
     }
 
@@ -365,6 +366,10 @@ int main(){
        fils[i]->subscribed = 0;
        fils[i]->addrmult = malloc(sizeof(char) * 16);
    }
+
+   //Initialise the client list
+   clients = malloc(sizeof(list_client));
+
 
     // Start the notification thread
     pthread_t notification_thread;
