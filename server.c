@@ -229,6 +229,7 @@ void send_fil_notification(uint16_t fil_index) {
     // Send the notification messages
     message_node *current_message = fils[fil_index].head;
     message_node *last_multicasted_message = fils[fil_index].last_multicasted_message;
+    message_node *updated_last_multicasted_message = NULL;
 
     while (current_message != NULL && current_message->msg != NULL && current_message != last_multicasted_message){
         // Send the message
@@ -237,15 +238,16 @@ void send_fil_notification(uint16_t fil_index) {
         char *serialized_msg =message_to_notification(current_message->msg,htons(fil_index));
         size_t serialized_msg_size = sizeof(uint8_t) * 34;
 
-        printf("Message: %c\n", *(current_message->msg->data));
 
         if (sendto(sockfd, serialized_msg, serialized_msg_size, 0, (struct sockaddr *)&dest_addr, sizeof(dest_addr)) < 0) {
             perror("sendto");
         }
 
-        fils[fil_index].last_multicasted_message = current_message;
+        if(updated_last_multicasted_message == NULL) updated_last_multicasted_message = current_message;
         current_message = current_message->next;
     }
+    //printf("New last multicasted message: %c\n\n", *(fils[fil_index].last_multicasted_message->msg->data));
+    if(updated_last_multicasted_message != NULL) fils[fil_index].last_multicasted_message = updated_last_multicasted_message;
     close(sockfd);
 }
 
@@ -255,7 +257,7 @@ void send_fil_notification(uint16_t fil_index) {
 void *send_notifications(void *arg){
     while(1){
         for(int i=0; i<fils_size; i++){
-            if(fils[i].head->msg!=NULL && fils[i].subscribed>0){
+            if(fils[i].head->msg!=NULL && fils[i].head != fils[i].last_multicasted_message && fils[i].subscribed>0){
                 // Send notifications for the fil
                 printf("Sending fil notif to fil %d\n",i);
                 send_fil_notification(i);
