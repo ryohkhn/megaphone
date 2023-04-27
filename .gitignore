@@ -4,6 +4,4 @@ cmake-build-debug
 *.o
 *.out
 a.out
-server
-client
 build
