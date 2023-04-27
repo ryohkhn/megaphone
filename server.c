@@ -124,7 +124,7 @@ uint16_t get_first_empty_numfil(){
 }
 
 void add_message_to_fil(client_message *msg, uint16_t fil_number) {
-    fil current_fil = fils[fil_number];
+    fil* current_fil = &fils[fil_number];
 
     message_node *new_node = malloc(sizeof(message_node));
     new_node->msg=malloc(sizeof(message));
@@ -134,13 +134,14 @@ void add_message_to_fil(client_message *msg, uint16_t fil_number) {
     new_node->msg->data=malloc(sizeof(uint8_t)*new_node->msg->datalen);
     memcpy(new_node->msg->data,msg->data+sizeof(uint8_t),new_node->msg->datalen);
 
-    new_node->next = current_fil.head;
-    current_fil.head = new_node;
+    new_node->next = current_fil->head;
+    current_fil->head = new_node;
 }
 
 char** retrieve_messages_from_fil(uint16_t fil_number) {
-    fil current_fil = fils[fil_number];
-    message_node *current = current_fil.head;
+    fil* current_fil = &fils[fil_number];
+
+    message_node *current = current_fil->head;
     char **messages = malloc(sizeof(char *) * 1024);
     int index = 0;
     while (current != NULL && current->msg != NULL) {
@@ -173,7 +174,7 @@ void poster_billet(client_message *msg,int sock_client){
         printf("Assigned new numfil = %d\n",numfil);
     }
     else if(numfil>=fils_size){
-        printf("Demande d'écriture sur un fil inexistant");
+        printf("Demande d'écriture sur un fil inexistant\n");
         numfil=0;
     }
 
@@ -233,7 +234,6 @@ void send_fil_notification(uint16_t fil_index) {
         // Send the message
         printf("DEBUG In boucle\n");
 
-        // TODO utiliser fil_index ?
         char *serialized_msg =message_to_notification(current_message->msg,htons(fil_index));
         size_t serialized_msg_size = sizeof(uint8_t) * 34;
 
@@ -254,8 +254,6 @@ void send_fil_notification(uint16_t fil_index) {
 // on lance la fonction send_fil_notification
 void *send_notifications(void *arg){
     while(1){
-        printf("IN BOUCLE WHILE\n");
-        printf("fils size: %d\n",fils_size);
         for(int i=0; i<fils_size; i++){
             if(fils[i].head->msg!=NULL && fils[i].subscribed>0){
                 // Send notifications for the fil
@@ -323,12 +321,14 @@ void add_subscription_to_fil(client_message *received_msg,int sock_client){
             return;
         }
 
+        /*
         // bind the socket
         int err=bind(multicast_sock,(struct sockaddr *) &server_addr,sizeof(server_addr));
         if(err==-1){
             perror("erreur de bind");
             exit(1);
         }
+         */
 
         addresse_a_envoyer=malloc(sizeof(uint8_t)*16); // Allocate memory for the address
         memcpy(addresse_a_envoyer,server_addr.sin6_addr.s6_addr,sizeof(uint8_t)*16); // Copy the address bytes
