@@ -35,6 +35,14 @@ build/%.o: src/%.c
 	mkdir -p build
 	$(COMPILE) -c $< -o $@
 
+build/%.o: src/client/%.c
+	mkdir -p build
+	$(COMPILE) -c $< -o $@
+
+build/%.o: src/server/%.c
+	mkdir -p build
+	$(COMPILE) -c $< -o $@
+
 # Build the client binary using the generated object files
 build/client: $(CLIENT_OBJECTS) $(COMMON_OBJECTS)
 	$(CC) $(CFLAGS) $^ -o $@ $(LIBS)
@@ -48,7 +56,7 @@ build: build/client build/server
 	@printf "\033[32mYou can now run ./build/client and ./build/server\n\033[0m"
 
 # Alias for the build target
-all: build
+all: clean build
 
 # Remove build artifacts
 clean :
