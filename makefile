@@ -37,11 +37,11 @@ build/%.o: src/%.c
 
 # Build the client binary using the generated object files
 build/client: $(CLIENT_OBJECTS) $(COMMON_OBJECTS)
-	$(CC) $(CFLAGS) $(LIBS) $^ -o $@
+	$(CC) $(CFLAGS) $^ -o $@ $(LIBS)
 
 # Build the server binary using the generated object files
 build/server: $(SERVER_OBJECTS) $(COMMON_OBJECTS)
-	$(CC) $(CFLAGS) $(LIBS) $^ -o $@
+	$(CC) $(CFLAGS) $^ -o $@ $(LIBS)
 
 # Build both client and server binaries
 build: build/client build/server
