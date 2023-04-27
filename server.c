@@ -6,6 +6,22 @@
 
 // même fonction que client.c (mettre dans utilities ou un .h/.c partagé ?)
 
+void add_new_fil() {
+    // If the list is full, reallocate memory to double the capacity
+    if (fils_size == fils_capacity) {
+        fils_capacity *= 2;
+        fils = realloc(fils, fils_capacity * sizeof(fil));
+        testMalloc(fils);
+    }
+
+    (*(fils+fils_size)).fil_number=fils_size;
+    (*(fils+fils_size)).head=malloc(sizeof(message_node));
+    (*(fils+fils_size)).last_multicasted_message=malloc(sizeof(message_node));
+    (*(fils+fils_size)).subscribed=0;
+    (*(fils+fils_size)).addrmult=malloc(sizeof(char)*16);
+    fils_size++;
+}
+
 char *pseudo_from_id(int id){
     list_client *current_client=clients;
     char *pseudo="##########";
@@ -96,12 +112,49 @@ void inscription_client(char * pseudo, int sock_client){
 
 // Find the first empty fil
 uint16_t get_first_empty_numfil(){
+    return fils_size;
+    /*
     for(uint16_t i=1; i<MAX_FIL; i++){
         if(fils[i]==NULL){
             return i;
         }
     }
     return 0;
+     */
+}
+
+void add_message_to_fil(client_message *msg, uint16_t fil_number) {
+    fil current_fil = fils[fil_number];
+
+    message_node *new_node = malloc(sizeof(message_node));
+    new_node->msg=malloc(sizeof(message));
+    new_node->msg->datalen=*msg->data;
+    new_node->msg->id=get_id_entete(msg->entete.val);
+
+    new_node->msg->data=malloc(sizeof(uint8_t)*new_node->msg->datalen);
+    memcpy(new_node->msg->data,msg->data+sizeof(uint8_t),new_node->msg->datalen);
+
+    new_node->next = current_fil.head;
+    current_fil.head = new_node;
+}
+
+char** retrieve_messages_from_fil(uint16_t fil_number) {
+    fil current_fil = fils[fil_number];
+    message_node *current = current_fil.head;
+    char **messages = malloc(sizeof(char *) * 1024);
+    int index = 0;
+    while (current != NULL && current->msg != NULL) {
+        messages[index] = strdup((char *)(current->msg->data)); // Assuming the data starts at msg.data[1]
+        /*
+        printf("Message: %s\n",current->msg->data);
+        printf("Message de l'id: %d\n",current->msg->id);
+        printf("Datalen : %d\n",current->msg->datalen);
+        */
+        index++;
+        current = current->next;
+    }
+    messages[index] = NULL; // Add NULL at the end of the messages array
+    return messages;
 }
 
 void poster_billet(client_message *msg,int sock_client){
@@ -114,15 +167,20 @@ void poster_billet(client_message *msg,int sock_client){
     printf("Numfil reçu: %d\n",numfil);
 
     if(numfil==0){
-        numfil=get_first_empty_numfil();
+        add_new_fil();
+        numfil=fils_size-1;
         printf("Numfil trouvé vide: %d\n",numfil);
         printf("Assigned new numfil = %d\n",numfil);
     }
+    else if(numfil>=fils_size){
+        printf("Demande d'écriture sur un fil inexistant");
+        numfil=0;
+    }
 
-    add_message_to_fil(fils,msg,numfil);
+    add_message_to_fil(msg,numfil);
 
     //TEST print all messages in the fil after adding the new one
-    char **res=retrieve_messages_from_fil(fils,numfil);
+    char **res=retrieve_messages_from_fil(numfil);
     int i=0;
     while(res[i]!=NULL){
         printf("Message %d: %s\n",i+1,res[i]);
@@ -139,17 +197,19 @@ void demander_liste_billets(client_message *msg, int sock_client){
         // uint16_t numfil=get_first_empty_numfil();
     }
     else{
+        /*
         if(fils[ntohs(msg->numfil)]==NULL){
             send_error_message(sock_client);
             return;
         }
+         */
 
     }
 }
 
 
-void send_fil_notification(fil *current_fil) {
-    if(current_fil->head == NULL) return;
+void send_fil_notification(uint16_t fil_index) {
+    if(fils[fil_index].head == NULL) return;
 
     // Create a socket for sending multicast notifications
     int sockfd = socket(AF_INET6, SOCK_DGRAM, 0);
@@ -163,17 +223,18 @@ void send_fil_notification(fil *current_fil) {
     memset(&dest_addr, 0, sizeof(dest_addr));
     dest_addr.sin6_family = AF_INET6;
     dest_addr.sin6_port = htons(MULTICAST_PORT);
-    inet_pton(AF_INET6, (char*) current_fil->addrmult, &dest_addr.sin6_addr);
+    inet_pton(AF_INET6, (char*) fils[fil_index].addrmult, &dest_addr.sin6_addr);
 
     // Send the notification messages
-    message_node *current_message = current_fil->head;
-    message_node *last_multicasted_message = current_fil->last_multicasted_message;
+    message_node *current_message = fils[fil_index].head;
+    message_node *last_multicasted_message = fils[fil_index].last_multicasted_message;
 
     while (current_message != NULL && current_message->msg != NULL && current_message != last_multicasted_message){
         // Send the message
         printf("DEBUG In boucle\n");
 
-        char *serialized_msg =message_to_notification(current_message->msg,htons(current_fil->fil_number));
+        // TODO utiliser fil_index ?
+        char *serialized_msg =message_to_notification(current_message->msg,htons(fil_index));
         size_t serialized_msg_size = sizeof(uint8_t) * 34;
 
         printf("Message: %c\n", *(current_message->msg->data));
@@ -182,7 +243,7 @@ void send_fil_notification(fil *current_fil) {
             perror("sendto");
         }
 
-        current_fil->last_multicasted_message = current_message;
+        fils[fil_index].last_multicasted_message = current_message;
         current_message = current_message->next;
     }
     close(sockfd);
@@ -193,12 +254,13 @@ void send_fil_notification(fil *current_fil) {
 // on lance la fonction send_fil_notification
 void *send_notifications(void *arg){
     while(1){
-        for(int i=0; i<MAX_FIL; i++){
-            // TODO Arrêter plus tôt que MAX_FIL
-            if(fils[i]->head->msg!=NULL && fils[i]->subscribed>0){
+        printf("IN BOUCLE WHILE\n");
+        printf("fils size: %d\n",fils_size);
+        for(int i=0; i<fils_size; i++){
+            if(fils[i].head->msg!=NULL && fils[i].subscribed>0){
                 // Send notifications for the fil
                 printf("Sending fil notif to fil %d\n",i);
-                send_fil_notification(fils[i]);
+                send_fil_notification(i);
             }
         }
         sleep(NOTIFICATION_INTERVAL);
@@ -231,12 +293,12 @@ void add_subscription_to_fil(client_message *received_msg,int sock_client){
         return;
     }
 
-    uint8_t *addresse_a_envoyer=malloc(sizeof(uint8_t)*16);
+    uint8_t *addresse_a_envoyer;
 
     // check if fil already has a multicast address
-    if(strlen(fils[numfil]->addrmult)>0){
+    if(strlen(fils[numfil].addrmult)>0){
         printf("Multicast for this fil is already initialised.\n");
-        addresse_a_envoyer=(uint8_t *) fils[numfil]->addrmult;
+        addresse_a_envoyer=(uint8_t *) fils[numfil].addrmult;
     }
     else{
         printf("INITIALISING MULTICAST ADDR.\n");
@@ -260,23 +322,28 @@ void add_subscription_to_fil(client_message *received_msg,int sock_client){
             perror("erreur initialisation de l'interface locale");
             return;
         }
+
         // bind the socket
-        bind(multicast_sock,(struct sockaddr *) &server_addr,sizeof(server_addr));
+        int err=bind(multicast_sock,(struct sockaddr *) &server_addr,sizeof(server_addr));
+        if(err==-1){
+            perror("erreur de bind");
+            exit(1);
+        }
 
         addresse_a_envoyer=malloc(sizeof(uint8_t)*16); // Allocate memory for the address
         memcpy(addresse_a_envoyer,server_addr.sin6_addr.s6_addr,sizeof(uint8_t)*16); // Copy the address bytes
 
         // Allocate memory for fils[numfil]->addrmult if it's not already allocated
-        if(fils[numfil]->addrmult==NULL){
-            fils[numfil]->addrmult=malloc(sizeof(uint8_t)*16);
+        if(fils[numfil].addrmult==NULL){
+            fils[numfil].addrmult=malloc(sizeof(uint8_t)*16);
         }
 
         // Copy the content of addresse_a_envoyer into fils[numfil]->addrmult
-        memcpy(fils[numfil]->addrmult,server_addr.sin6_addr.s6_addr,sizeof(uint8_t)*16);
+        memcpy(fils[numfil].addrmult,server_addr.sin6_addr.s6_addr,sizeof(uint8_t)*16);
     }
 
     // update fil subscription counter
-    fils[numfil]->subscribed+=1;
+    fils[numfil].subscribed+=1;
 
     //sending response to client
     server_subscription_message *msg=malloc(sizeof(server_subscription_message));
@@ -374,6 +441,7 @@ void *serve(void *arg){
     return NULL;
 }
 
+
 int main(){
     //*** creation de l'adresse du destinataire (serveur) ***
     struct sockaddr_in6 address_sock;
@@ -426,15 +494,8 @@ int main(){
     }
 
     // Initialise the fils
-    fils = malloc(sizeof(fil *) * MAX_FIL);
-    for (int i = 0; i < MAX_FIL; i++) {
-       fils[i] = malloc(sizeof(fil));
-       fils[i]->fil_number = i;
-       fils[i]->head = malloc(sizeof(message_node));
-       fils[i]->last_multicasted_message = malloc(sizeof(message_node));
-       fils[i]->subscribed = 0;
-       fils[i]->addrmult = malloc(sizeof(char) * 16);
-    }
+    fils = malloc(sizeof(fil));
+    add_new_fil();
 
     //Initialise the client list
     clients = malloc(sizeof(list_client));

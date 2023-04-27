@@ -7,13 +7,17 @@
 #include <string.h>
 #include <stdlib.h>
 
+// Maximum size of numfil possible (2^16 - 1)
+#define MAX_FIL 65536
 
 uint16_t id_dernier_client = 0;
 
 list_client * clients;
 
 // Liste des listes chainees pour les messages postes dans un fil
-fil **fils;
+fil *fils;
+uint16_t fils_size = 0;
+uint16_t fils_capacity = 1;
 
 int running = 1;
 void signal_handler(int signal, siginfo_t *siginfo, void *context) {

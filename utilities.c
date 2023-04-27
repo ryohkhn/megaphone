@@ -190,43 +190,4 @@ client_message *copy_client_message(client_message *msg) {
     return copy;
 }
 
-void add_message_to_fil(fil *fils[], client_message *msg, uint16_t fil_number) {
-    fil *current_fil = fils[fil_number];
-    // TODO changer le comportement quand le fil n'existe pas
-    if (current_fil == NULL) {
-        current_fil = malloc(sizeof(fil));
-        current_fil->fil_number = fil_number;
-        current_fil->head = NULL;
-        fils[fil_number] = current_fil;
-    }
-    message_node *new_node = malloc(sizeof(message_node));
-    new_node->msg=malloc(sizeof(message));
-    new_node->msg->datalen=*msg->data;
-    new_node->msg->id=get_id_entete(msg->entete.val);
 
-    new_node->msg->data=malloc(sizeof(uint8_t)*new_node->msg->datalen);
-    memcpy(new_node->msg->data,msg->data+sizeof(uint8_t),new_node->msg->datalen);
-
-    new_node->next = current_fil->head;
-    current_fil->head = new_node;
-}
-
-
-char** retrieve_messages_from_fil(fil *fils[], uint16_t fil_number) {
-    fil *current_fil = fils[fil_number];
-    message_node *current = current_fil->head;
-    char **messages = malloc(sizeof(char *) * 1024);
-    int index = 0;
-    while (current != NULL && current->msg != NULL) {
-        messages[index] = strdup((char *)(current->msg->data)); // Assuming the data starts at msg.data[1]
-        /*
-        printf("Message: %s\n",current->msg->data);
-        printf("Message de l'id: %d\n",current->msg->id);
-        printf("Datalen : %d\n",current->msg->datalen);
-        */
-        index++;
-        current = current->next;
-    }
-    messages[index] = NULL; // Add NULL at the end of the messages array
-    return messages;
-}
