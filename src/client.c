@@ -1,4 +1,4 @@
-#include "client.h"
+#include "include/client.h"
 
 inscription *create_inscription(char pseudo[]){
     char new_pseudo[10];
