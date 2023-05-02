@@ -259,7 +259,8 @@ void *listen_multicast_messages(void *arg) {
         struct sockaddr_in6 src_addr;
         socklen_t addrlen=sizeof(src_addr);
 
-        ssize_t nbytes=recvfrom(sockfd,buffer,sizeof(buffer),0,(struct sockaddr *) &src_addr,&addrlen);
+        ssize_t nbytes=recvfrom(sockfd,buffer,sizeof(buffer),0,
+                                (struct sockaddr *) &src_addr,&addrlen);
         if(nbytes<0){
             perror("recvfrom");
             break;
@@ -312,7 +313,8 @@ void subscribe_to_fil(uint16_t fil_number) {
 
     //  set up a separate thread to listen for messages on the multicast address
     pthread_t notification_thread;
-    int rc = pthread_create(&notification_thread, NULL, listen_multicast_messages, (void *)received_msg->addrmult);
+    int rc = pthread_create(&notification_thread, NULL, listen_multicast_messages,
+                            (void *)received_msg->addrmult);
     if (rc != 0) {
         perror("pthread_create");
         exit(1);
@@ -326,7 +328,7 @@ void add_file(int nbfil) {
     client_message *msg = malloc(sizeof(client_message));
 
     msg->entete.val = create_entete(5, user_id)->val;
-    msg->nb = 0;
+    msg->nb = htons(0);
     msg->numfil = htons(nbfil);
 
     printf("Ouverture et vérification du fichier\n");
@@ -357,20 +359,24 @@ void add_file(int nbfil) {
     scanf("%s", filename);
 
     uint8_t datalen = strlen(filename) + 1;
-    msg->data = malloc(sizeof(uint8_t) * (datalen + 1));
+    msg->data = malloc(sizeof(char) * (datalen + 1));
     *msg->data = datalen;
     memcpy(msg->data + 1, filename, sizeof(char) * (datalen));
     printf("msg->entete.val = %d\n", msg->entete.val);
     printf("datalen = %d\n", datalen);
     printf("msg->data = %d%s\n", msg->data[0], msg->data + 1);
+    //msg->data + 1 = "test";
+    //printf("msg->data = %d%s\n", msg->data[0], msg->data + 1);
 
-    //char *serialized_msg = client_message_to_string(msg);
-    //printf("serialization = %s\n", serialized_msg);
+
+    char *serialized_msg = client_message_to_string(msg);
+    printf("serialization validée \n");
+
 
 
     printf("Envoi du message au serveur\n");
-    //ssize_t ecrit = send(clientfd, serialized_msg, sizeof(char) * strlen(serialized_msg), 0);
-    ssize_t ecrit = send(clientfd, msg, sizeof(char) * (datalen + 1) + 2 * sizeof(uint16_t) + sizeof(entete) , 0);
+    ssize_t ecrit = send(clientfd, serialized_msg,
+                         sizeof(uint16_t) * 3 + sizeof(char) * (msg->data[0] + 1), 0);
     if (ecrit <= 0) {
         perror("Erreur ecriture");
         exit(3);
@@ -430,42 +436,54 @@ void add_file(int nbfil) {
     int packet_num = 0;
     size_t bytes_read;
 
-    client_message_udp *msg_udp = malloc(sizeof(client_message_udp));
-    char *serialize_buffer = malloc(sizeof(char) * 516);
+    client_message_udp * msg_udp = malloc(sizeof(client_message_udp));
+
+
 
     while ((bytes_read = fread(buffer, 1, 512, file)) > 0) {
-
         printf("Préparation du message UDP\n");
         msg_udp->entete = msg->entete;
         msg_udp->numbloc = packet_num;
-        memcpy(msg_udp->data, buffer, sizeof(char) * 512);
+        msg_udp->data = malloc(sizeof(char) * bytes_read);
+        memcpy(msg_udp->data, buffer, sizeof(char) * bytes_read);
         printf("msg_udp->entete = %d\n",msg_udp->entete.val);
         printf("msg_udp->numbloc = %d\n",msg_udp->numbloc);
         printf("msg_udp->data = %s\n",msg_udp->data);
 
+
+        // on serialize
+        ssize_t serialize_buf_size = sizeof(char) * bytes_read + sizeof(uint16_t) * 2;
+        char *serialize_buffer = malloc(serialize_buf_size);
+
+        memcpy(serialize_buffer, &(msg_udp->entete.val), sizeof(uint16_t));
+        memcpy(serialize_buffer + sizeof(uint16_t), &(msg_udp->numbloc), sizeof(uint16_t));
+        memcpy(serialize_buffer + sizeof(uint16_t) * 2, msg_udp->data, bytes_read);
+
         printf("Envoi du message UDP\n");
-        ssize_t bytes_sent = sendto(sock_udp, serialize_buffer, bytes_read, 0, (struct sockaddr *) &server_addr,
-                                    addr_len);
+        ssize_t bytes_sent = sendto(sock_udp, serialize_buffer, serialize_buf_size, 0,
+                                    (struct sockaddr *) &server_addr, addr_len);
+
+        packet_num += 1;
+        free(serialize_buffer);
+
         // todo erreur envoie données
         if (bytes_sent < 0) {
             free(msg_udp);
-            free(serialize_buffer);
             perror("Erreur lors de l'envoi des données");
             fclose(file);
             return;
         }
-        packet_num += 1;
     }
 
     printf("Nettoyage et fermeture du fichier\n");
-    free(serialize_buffer);
     free(msg_udp);
     fclose(file);
+    close(sock_udp);
 }
 
 
 
-    void client(){
+void client(){
     int fdsock=socket(PF_INET,SOCK_STREAM,0);
     if(fdsock==-1){
         perror("creation socket");

@@ -38,7 +38,7 @@ typedef struct client_message{
 typedef struct client_message_udp{
     entete entete;
     uint16_t numbloc;
-    char data[512];
+    char * data;
 } client_message_udp;
 
 typedef struct server_billet{
@@ -130,7 +130,6 @@ uint16_t chars_to_uint16(char a,char b);
 
 long size_file(FILE *file);
 
-client_message_udp *string_to_udp_message(const char *buffer);
 
 
 

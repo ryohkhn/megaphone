@@ -154,15 +154,30 @@ char *client_message_to_string(client_message *msg) {
     printf("datalen = %d\n",msg->data[0]);
     printf("msg->data = %d%s\n", msg->data[0], msg->data + 1);
 
-    size_t buffer_size = sizeof(uint16_t) * 3 + 1 + msg->data[0];
+    size_t buffer_size = sizeof(uint16_t) * 3 + sizeof(char) * (msg->data[0] + 1);
+    printf("buffer_size = %zu\n", buffer_size);
     char *buffer = malloc(buffer_size);
 
     memcpy(buffer, &(msg->entete.val), sizeof(uint16_t));
+    printf("etape 1 buffer= %s\n", buffer);
     memcpy(buffer + sizeof(uint16_t), &(msg->numfil), sizeof(uint16_t));
+    printf("etape 2 buffer= %s\n", buffer);
     memcpy(buffer + sizeof(uint16_t) * 2, &(msg->nb), sizeof(uint16_t));
+    printf("etape 3 buffer= %s\n", buffer);
     memcpy(buffer + sizeof(uint16_t) * 3, msg->data, 1 + msg->data[0]);
     printf("client_message_to_string buffer = %s\n", buffer);
     printf("fin de fonction\n");
+
+    printf("entete %d \n",buffer[0]);
+    printf("numfil %d \n",buffer[2]);
+    printf("nb %d \n",buffer[2]);
+    printf("datalen %d \n",buffer[6]);
+    printf("data %s \n",buffer + 7);
+
+    client_message * test = string_to_client_message(buffer);
+    printf("test>entete.val = %d\n", test->entete.val);
+    printf("datalen = %d\n",test->data[0]);
+    printf("test->data = %d%s\n", test->data[0], test->data + 1);
     return buffer;
 }
 
@@ -202,19 +217,6 @@ long size_file(FILE *file) {
     long taille = ftell(file);
     fseek(file, 0, SEEK_SET);
     return taille;
-}
-
-client_message_udp *string_to_udp_message(const char *buffer) {
-    client_message_udp * msg = malloc(sizeof(client_message_udp));
-
-    // Copy entete, numfil, and nb from the buffer
-    memcpy(&(msg->entete.val), buffer, sizeof(uint16_t));
-    memcpy(&(msg->numbloc), buffer + sizeof(uint16_t), sizeof(uint16_t));
-
-    // Extract data from the buffer, located right after numbloc
-    memcpy(msg->data, buffer + sizeof(uint16_t) * 2, sizeof(char) * (strlen(buffer)) - (sizeof(uint16_t) * 2));
-
-    return msg;
 }
 
 

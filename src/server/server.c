@@ -618,9 +618,14 @@ void add_file(client_message *received_msg, int sock_client) {
             }
         }
         printf("Données reçues : %zu\n", bytes_read);
-        printf("Données reçues : %s\n", recv_buffer);
-        // on traduit dans la bonne struct
-        client_message_udp *received_msg_udp = string_to_udp_message(recv_buffer);
+
+        // on deserialize
+        client_message_udp *received_msg_udp = malloc(sizeof(client_message_udp));
+        memcpy(&(received_msg_udp->entete.val), recv_buffer, sizeof(uint16_t));
+        memcpy(&(received_msg_udp->numbloc), recv_buffer + sizeof(uint16_t), sizeof(uint16_t));
+        received_msg_udp->data = malloc(sizeof(char) * bytes_read - sizeof(uint16_t) * 2);
+        memcpy(received_msg_udp->data, recv_buffer + sizeof(uint16_t) * 2, sizeof(char) * bytes_read - sizeof(uint16_t) * 2);
+
         printf("received_msg_udp->entete.val = %d\n",received_msg_udp->entete.val);
         printf("received_msg_udp->numbloc = %d\n",received_msg_udp->numbloc);
         printf("received_msg_udp->data = %s\n",received_msg_udp->data);
@@ -629,7 +634,7 @@ void add_file(client_message *received_msg, int sock_client) {
         if (file == NULL) {
             char file_path[512];
             snprintf(file_path, sizeof(file_path), "%s/%d_%s", file_directory, received_msg->numfil, received_msg->data + 1);
-            printf("file_path = %s", file_path);
+            printf("file_path = %s\n", file_path);
             file = fopen(file_path, "w");
             if (file == NULL) {
                 perror("Erreur d'ouverture du fichier");
@@ -639,11 +644,13 @@ void add_file(client_message *received_msg, int sock_client) {
 
         printf("écriture dans le file\n");
         // on écrit dans le FILE
-        fwrite(received_msg_udp->data + 1, 1, bytes_read - 1, file);
+        fwrite(received_msg_udp->data, 1, sizeof(char) * bytes_read - sizeof(uint16_t) * 2, file);
 
         // todo gérer le cas ou les packets ne sont pas dans l'ordre
         packet_num = received_msg_udp->numbloc;
 
+        // si dernier paquet udp, on break
+        if(bytes_read < sizeof(char) * 512 + sizeof(u_int16_t) * 2) break;
     } while (1);
 
     printf("fin while, release_port, fclose, close\n");
