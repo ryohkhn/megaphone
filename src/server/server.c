@@ -47,7 +47,7 @@ void release_port(int port) {
     }
 }
 
-void add_new_fil() {
+void add_new_fil(char* originaire) {
     // If the list is full, reallocate memory to double the capacity
     if (fils_size == fils_capacity) {
         fils_capacity *= 2;
@@ -59,6 +59,9 @@ void add_new_fil() {
     //(*(fils+fils_size)).head=malloc(sizeof(message_node));
     (*(fils+fils_size)).last_multicasted_message=malloc(sizeof(message_node));
     (*(fils+fils_size)).subscribed=0;
+    (*(fils+fils_size)).originaire=malloc(sizeof(uint8_t)*10);
+    memcpy((*(fils+fils_size)).originaire,originaire,sizeof(uint8_t)*10);
+    (*(fils+fils_size)).nb_messages=0;
     (*(fils+fils_size)).addrmult=malloc(sizeof(char)*16);
     fils_size++;
 }
@@ -153,6 +156,7 @@ void inscription_client(char * pseudo, int sock_client){
 
 void add_message_to_fil(client_message *msg, uint16_t fil_number) {
     fil* current_fil = &fils[fil_number];
+    current_fil->nb_messages++;
 
     message_node *new_node = malloc(sizeof(message_node));
     new_node->msg=malloc(sizeof(message));
@@ -187,7 +191,7 @@ char** retrieve_messages_from_fil(uint16_t fil_number) {
 }
 
 void poster_billet(client_message *msg,int sock_client){
-    int id=ntohs(msg->entete.val)>>5;
+    uint16_t id=get_id_entete(msg->entete.val);
 
     printf("Received message from user with id %d, to post to numfil %d\n",id,ntohs(msg->numfil));
     printf("The message is: %s\n",(char *) (msg->data+1));
@@ -196,7 +200,7 @@ void poster_billet(client_message *msg,int sock_client){
     printf("Numfil reçu: %d\n",numfil);
 
     if(numfil==0){
-        add_new_fil();
+        add_new_fil(pseudo_from_id(id));
         numfil=fils_size-1;
         printf("Numfil trouvé vide: %d\n",numfil);
     }
@@ -215,19 +219,8 @@ void poster_billet(client_message *msg,int sock_client){
         i++;
     }
 
-    //sending response to client
+    // Sending response to client
     send_message(2,id,0,numfil,sock_client);
-}
-
-uint16_t nb_message_fil(uint16_t numfil){
-    message_node* current_node=fils[numfil].head;
-    if(current_node==NULL) return 0;
-    uint16_t count=0;
-    while(1){
-        count++;
-        if(current_node->next==NULL) return count;
-        current_node=current_node->next;
-    }
 }
 
 /**
@@ -264,11 +257,8 @@ size_t send_messages_from_fil(char *buffer,uint16_t numfil,size_t offset,uint16_
         memcpy(buffer+offset,&numfil_network,sizeof(uint16_t));
         offset+=sizeof(uint16_t);
 
-        // TODO Ajouter origine
         // Copy the origin of the fil to the buffer
-        uint8_t* origine=malloc(sizeof(uint8_t)*10);
-        memset(origine,0,sizeof(uint8_t)*10);
-        memcpy(buffer+offset,origine,sizeof(uint8_t)*10);
+        memcpy(buffer+offset,current_fil->originaire,sizeof(uint8_t)*10);
         offset+=sizeof(uint8_t)*10;
 
         // Copy the pseudo of the people that wrote the message to the buffer
@@ -299,9 +289,8 @@ void demander_liste_billets(client_message *msg, int sock_client){
     // If the asked fil is 0 the server send messages from all fils
     if(msg_numfil==0){
         uint16_t total_nb;
-        // TODO ajouter nb_messages dans la structure
         for(uint16_t i=0; i<fils_size; ++i){
-            nb_fil=nb_message_fil(i);
+            nb_fil=fils[i].nb_messages;
             if(msg_nb==0 || msg_nb>nb_fil){
                 total_nb+=nb_fil;
             }
@@ -319,7 +308,7 @@ void demander_liste_billets(client_message *msg, int sock_client){
         size_t offset=0;
 
         for(int i=0; i<fils_size; ++i){
-            nb_fil=nb_message_fil(i);
+            nb_fil=fils[i].nb_messages;
             // skip the fil 0 if empty
             if(i==0 && nb_fil==0) continue;
 
@@ -347,7 +336,7 @@ void demander_liste_billets(client_message *msg, int sock_client){
             send_error_message(sock_client);
             return;
         }
-        nb_fil=nb_message_fil(msg_numfil);
+        nb_fil=fils[msg_numfil].nb_messages;
         if(msg_nb==0 || msg_nb>nb_fil){
             msg_nb=nb_fil;
         }
@@ -551,7 +540,7 @@ void add_file(client_message *received_msg, int sock_client) {
     printf("received_msg->data = %d%s\n", received_msg->data[0], received_msg->data + 1);
     // on fait les vérifications de pour ajouter un billet à un fil
     if (received_msg->numfil == 0) {
-        add_new_fil();
+        add_new_fil(pseudo_from_id(get_id_entete(received_msg->entete.val)));
         received_msg->numfil = fils_size - 1;
         printf("Numfil trouvé vide, création d'un nouveau fil : %d\n", received_msg->numfil);
     } else if (received_msg->numfil >= fils_size) {
@@ -810,7 +799,8 @@ int main(){
 
     // Initialise the fils
     fils = malloc(sizeof(fil));
-    add_new_fil();
+    // The fil 0 has no originaire
+    add_new_fil("");
 
     //Initialise the client list
     clients = malloc(sizeof(list_client));

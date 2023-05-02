@@ -85,6 +85,8 @@ typedef struct fil{
     uint16_t fil_number;
     message_node *head;
     message_node *last_multicasted_message;
+    uint8_t *originaire;
+    size_t nb_messages;
     char* addrmult;
     int subscribed;
 } fil;
@@ -95,8 +97,6 @@ typedef struct list_client{
     struct list_client * suivant;
 } list_client;
 
-
-// Possibilité d'optimisation en utilisant un tableau au lieu d'une liste.
 
 void testMalloc(void *ptr);
 
