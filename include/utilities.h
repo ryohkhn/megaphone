@@ -7,6 +7,9 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <sys/socket.h>
+#include <sys/time.h>
+#include <errno.h>
 
 
 #define NOTIFICATION_INTERVAL 5
@@ -31,6 +34,12 @@ typedef struct client_message{
     uint16_t nb;
     uint8_t *data;
 } client_message;
+
+typedef struct client_message_udp{
+    entete entete;
+    uint16_t numbloc;
+    char data[512];
+} client_message_udp;
 
 typedef struct server_billet{
     uint16_t numfil;
@@ -118,6 +127,11 @@ notification *string_to_notification(const char* buffer);
 uint16_t get_id_entete(uint16_t ent);
 
 uint16_t chars_to_uint16(char a,char b);
+
+long size_file(FILE *file);
+
+client_message_udp *string_to_udp_message(const char *buffer);
+
 
 
 #define MEGAPHONE_UTILITIES_H

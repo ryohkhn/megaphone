@@ -1,5 +1,6 @@
 #include "../../include/client.h"
 
+
 inscription *create_inscription(char pseudo[]){
     char new_pseudo[10];
     if(strlen(pseudo)!=10){
@@ -233,6 +234,8 @@ void *listen_multicast_messages(void *arg) {
     }
 
 
+
+
     // Receive and process messages
     while(1){
         char buffer[262];
@@ -300,8 +303,152 @@ void subscribe_to_fil(uint16_t fil_number) {
 
 }
 
+void add_file(int nbfil) {
+    printf("Création du message du client au serveur\n");
+    // on crée le message du client au serveur
+    client_message *msg = malloc(sizeof(client_message));
 
-void client(){
+    msg->entete.val = create_entete(5, user_id)->val;
+    msg->nb = 0;
+    msg->numfil = htons(nbfil);
+
+    printf("Ouverture et vérification du fichier\n");
+    // on ouvre le fichier pour vérifier qu'il existe
+    FILE *file = NULL;
+    long size_max = 1L << 25; // 2^25 octets
+    while (1) {
+        printf("Please enter a file emplacement: ");
+        char *file_emplacement = malloc(sizeof(char) * 512);
+        scanf("%s", file_emplacement);
+        file = fopen(file_emplacement, "rb");
+        if (file == NULL) {
+            printf("The file emplacement is invalid.\n");
+        } else {
+            long size = size_file(file);
+            if (size > size_max) {
+                printf("The file is too large.\n");
+                fclose(file);
+            }
+            break;
+        }
+    }
+
+    printf("Récupération du nom du fichier\n");
+    // on récupère le nom du fichier
+    printf("Please enter the name of the file: ");
+    char *filename = malloc(sizeof(char) * 512);
+    scanf("%s", filename);
+
+    uint8_t datalen = strlen(filename) + 1;
+    msg->data = malloc(sizeof(uint8_t) * (datalen + 1));
+    *msg->data = datalen;
+    memcpy(msg->data + 1, filename, sizeof(char) * (datalen));
+    printf("msg->entete.val = %d\n", msg->entete.val);
+    printf("datalen = %d\n", datalen);
+    printf("msg->data = %d%s\n", msg->data[0], msg->data + 1);
+
+    //char *serialized_msg = client_message_to_string(msg);
+    //printf("serialization = %s\n", serialized_msg);
+
+
+    printf("Envoi du message au serveur\n");
+    //ssize_t ecrit = send(clientfd, serialized_msg, sizeof(char) * strlen(serialized_msg), 0);
+    ssize_t ecrit = send(clientfd, msg, sizeof(char) * (datalen + 1) + 2 * sizeof(uint16_t) + sizeof(entete) , 0);
+    if (ecrit <= 0) {
+        perror("Erreur ecriture");
+        exit(3);
+    }
+
+    printf("Réception du message du serveur\n");
+    // reception du message serveur
+    uint16_t server_msg[3];
+    ssize_t recu = recv(clientfd, server_msg, 3 * sizeof(uint16_t), 0);
+
+    printf("retour du serveur reçu\n");
+    if (recu < 0) {
+        perror("erreur lecture");
+        exit(4);
+    }
+    if (recu == 0) {
+        printf("serveur off\n");
+        exit(0);
+    }
+
+    for(int i = 0; i < 3; i++){
+        server_msg[i] = ntohs(server_msg[i]);
+    }
+    printf(" CODEREQ + ID = %hu\n", server_msg[0]);
+    printf("NUMFIL = %hu\n", server_msg[1]);
+    printf("NB (port) = %hu\n", server_msg[2]);
+
+
+
+
+    close(clientfd);
+
+    printf("Création et configuration du socket UDP\n");
+    int sock_udp;
+    struct sockaddr_in server_addr;
+    socklen_t addr_len = sizeof(server_addr);
+
+    // Création du socket
+    sock_udp = socket(AF_INET, SOCK_DGRAM, 0);
+    if (sock_udp < 0) {
+        perror("Erreur de création du socket");
+        return;
+    }
+
+    // Configuration de l'adresse du serveur
+    memset(&server_addr, 0, sizeof(server_addr));
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = htons(server_msg[2]);
+    if (inet_pton(AF_INET, "127.0.0.1", &server_addr.sin_addr) <= 0) {
+        perror("Erreur lors de la conversion de l'adresse IP");
+        close(sock_udp);
+        return;
+    }
+    printf("Envoi du fichier au serveur via UDP\n");
+// envoie au serveur en udp
+    char buffer[512];
+    int packet_num = 0;
+    size_t bytes_read;
+
+    client_message_udp *msg_udp = malloc(sizeof(client_message_udp));
+    char *serialize_buffer = malloc(sizeof(char) * 516);
+
+    while ((bytes_read = fread(buffer, 1, 512, file)) > 0) {
+
+        printf("Préparation du message UDP\n");
+        msg_udp->entete = msg->entete;
+        msg_udp->numbloc = packet_num;
+        memcpy(msg_udp->data, buffer, sizeof(char) * 512);
+        printf("msg_udp->entete = %d\n",msg_udp->entete.val);
+        printf("msg_udp->numbloc = %d\n",msg_udp->numbloc);
+        printf("msg_udp->data = %s\n",msg_udp->data);
+
+        printf("Envoi du message UDP\n");
+        ssize_t bytes_sent = sendto(sock_udp, serialize_buffer, bytes_read, 0, (struct sockaddr *) &server_addr,
+                                    addr_len);
+        // todo erreur envoie données
+        if (bytes_sent < 0) {
+            free(msg_udp);
+            free(serialize_buffer);
+            perror("Erreur lors de l'envoi des données");
+            fclose(file);
+            return;
+        }
+        packet_num += 1;
+    }
+
+    printf("Nettoyage et fermeture du fichier\n");
+    free(serialize_buffer);
+    free(msg_udp);
+    fclose(file);
+}
+
+
+
+    void client(){
     int fdsock=socket(PF_INET,SOCK_STREAM,0);
     if(fdsock==-1){
         perror("creation socket");
@@ -324,6 +471,8 @@ void client(){
 
     clientfd=fdsock;
 }
+
+
 
 void print_ascii(){
     printf("  ------------------------------------------------------------  \n"
@@ -359,7 +508,6 @@ res_inscription *test(){
 
 void run(){
     int choice;
-
     res_inscription *res_ins;
 
     while(1){
@@ -379,6 +527,7 @@ void run(){
         char *reponse=malloc(1024*sizeof(char));
         int nbfil=0;
         int n=0;
+
 
         switch(choice){
             case 1:
@@ -410,6 +559,10 @@ void run(){
                 subscribe_to_fil(nbfil);
                 break;
             case 5:
+                printf("Please enter the thread: ");
+                scanf("%d",&nbfil);
+
+                add_file(nbfil);
             case 6:
             default:
                 exit(0);
@@ -418,6 +571,8 @@ void run(){
         close(clientfd);
     }
 }
+
+
 
 int main(void){
     run();

@@ -148,6 +148,11 @@ server_billet *string_to_server_billet(const char *buffer) {
 }
 
 char *client_message_to_string(client_message *msg) {
+    printf("\nUTILITIES---------------------------------\n");
+    printf("msg->entete.val = %d\n", msg->entete.val);
+    printf("datalen = %d\n",msg->data[0]);
+    printf("msg->data = %d%s\n", msg->data[0], msg->data + 1);
+
     size_t buffer_size = sizeof(uint16_t) * 3 + 1 + msg->data[0];
     char *buffer = malloc(buffer_size);
 
@@ -155,7 +160,8 @@ char *client_message_to_string(client_message *msg) {
     memcpy(buffer + sizeof(uint16_t), &(msg->numfil), sizeof(uint16_t));
     memcpy(buffer + sizeof(uint16_t) * 2, &(msg->nb), sizeof(uint16_t));
     memcpy(buffer + sizeof(uint16_t) * 3, msg->data, 1 + msg->data[0]);
-
+    printf("client_message_to_string buffer = %s\n", buffer);
+    printf("fin de fonction\n");
     return buffer;
 }
 
@@ -188,6 +194,26 @@ client_message *copy_client_message(client_message *msg) {
     copy->data = malloc(sizeof(uint8_t) * (datalen + 1));
     memcpy(copy->data, msg->data, sizeof(uint8_t) * (datalen + 1));
     return copy;
+}
+
+long size_file(FILE *file) {
+    fseek(file, 0, SEEK_END);
+    long taille = ftell(file);
+    fseek(file, 0, SEEK_SET);
+    return taille;
+}
+
+client_message_udp *string_to_udp_message(const char *buffer) {
+    client_message_udp * msg = malloc(sizeof(client_message_udp));
+
+    // Copy entete, numfil, and nb from the buffer
+    memcpy(&(msg->entete.val), buffer, sizeof(uint16_t));
+    memcpy(&(msg->numbloc), buffer + sizeof(uint16_t), sizeof(uint16_t));
+
+    // Extract data from the buffer, located right after numbloc
+    memcpy(msg->data, buffer + sizeof(uint16_t) * 2, sizeof(char) * (strlen(buffer)) - (sizeof(uint16_t) * 2));
+
+    return msg;
 }
 
 
