@@ -97,11 +97,15 @@ void print_n_tickets(char *server_msg,uint16_t numfil){
     for(int i=0; i<nb_serv; i++){
         server_billet * received_billet=string_to_server_billet(server_msg+count);
 
-        printf("\nFil %d\n",ntohs(received_billet->numfil));
-        char* originaire=pseudo_nohashtags(received_billet->origine);
-        printf("Originaire du fil: %s\n\n",originaire);
+        uint16_t fil=ntohs(received_billet->numfil);
+        printf("\nFil %d\n",fil);
+        // We don't show the name of the maker of the thread 0 since the server is creating it
+        if(fil!=0){
+            char* originaire=pseudo_nohashtags(received_billet->origine);
+            printf("Originaire du fil: %s\n",originaire);
+        }
         char* pseudo=pseudo_nohashtags(received_billet->pseudo);
-        printf("\033[0;31m<%s>\033[0m ",pseudo);
+        printf("\n\033[0;31m<%s>\033[0m ",pseudo);
         printf("%s\n",received_billet->data+1);
 
         count+=sizeof(uint16_t)+sizeof(uint8_t)*10+sizeof(uint8_t)*10+sizeof(uint8_t)*((*received_billet->data)+1);
@@ -136,7 +140,7 @@ void request_n_tickets(res_inscription *i,uint16_t numfil,uint16_t n){
     size_t total_bytes_received = 0;
 
     while ((bytes_received = recv(clientfd, buffer + total_bytes_received, BUFSIZ, 0)) > 0) {
-        printf("receveid: %zd\n",bytes_received);
+        printf("Octets reçus du serveur: %zu\n",bytes_received);
         total_bytes_received += bytes_received;
 
         // Check if the remaining buffer space is less than BUFSIZ
@@ -521,7 +525,7 @@ res_inscription *test(){
 
 void run(){
     int choice;
-    res_inscription *res_ins;
+    res_inscription *res_ins=NULL;
 
     while(1){
         print_ascii();
@@ -535,12 +539,16 @@ void run(){
             if(choice>=1 && choice<=6) break;
         }
 
-        client();
-
         char *reponse=malloc(1024*sizeof(char));
         int nbfil=0;
         int n=0;
 
+        if(res_ins==NULL && choice!=1){
+            printf("\nYou need to be registered first (Press 1)\n\n");
+            continue;
+        }
+
+        client();
 
         switch(choice){
             case 1:

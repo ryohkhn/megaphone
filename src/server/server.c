@@ -234,7 +234,6 @@ void poster_billet(client_message *msg,int sock_client){
  * @return the offset of the buffer where data was written
  */
 size_t send_messages_from_fil(char *buffer,uint16_t numfil,size_t offset,uint16_t msg_nb,int sock_client){
-    // TODO vérifier que le BUFSIZ marche bien
     fil* current_fil=&fils[numfil];
     message_node* current_message=current_fil->head;
 
@@ -245,6 +244,7 @@ size_t send_messages_from_fil(char *buffer,uint16_t numfil,size_t offset,uint16_
         if((offset+sizeof(uint8_t)*22+sizeof(uint8_t)*datalen)>BUFSIZ){
             ssize_t nboctet = send(sock_client, buffer,sizeof(char)*offset, 0);
             if(nboctet <= 0)perror("send n billets to client");
+            printf("Octets envoyés au client: %zu\n",nboctet);
 
             free(buffer);
             buffer=malloc(sizeof(char)*BUFSIZ);
@@ -326,6 +326,7 @@ void demander_liste_billets(client_message *msg, int sock_client){
         if(offset!=0){
             ssize_t nboctet = send(sock_client, buffer,sizeof(char)*(offset), 0);
             if(nboctet <= 0) perror("send n billets to client");
+            printf("Octets envoyés au client: %zu\n",nboctet);
         }
 
         free(buffer);
@@ -356,6 +357,7 @@ void demander_liste_billets(client_message *msg, int sock_client){
         if(offset!=0){
             ssize_t nboctet = send(sock_client, buffer,sizeof(char)*(offset), 0);
             if(nboctet <= 0) perror("send n billets to client");
+            printf("Octets envoyés au client: %zu\n",nboctet);
         }
 
         free(buffer);
