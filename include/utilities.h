@@ -72,16 +72,16 @@ typedef struct message{
     uint16_t id;
     uint8_t datalen;
     uint8_t* data;
-}message;
+} message;
 
-// List of fils
-typedef struct message_node {
+// List of messages
+typedef struct message_node{
     message *msg;
     struct message_node *next;
 } message_node;
 
 // Specific fil as a list of messages
-typedef struct fil {
+typedef struct fil{
     uint16_t fil_number;
     message_node *head;
     message_node *last_multicasted_message;
@@ -93,7 +93,7 @@ typedef struct list_client{
     unsigned long id;
     char * pseudo;
     struct list_client * suivant;
-}list_client;
+} list_client;
 
 
 // Possibilité d'optimisation en utilisant un tableau au lieu d'une liste.

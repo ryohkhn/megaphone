@@ -56,7 +56,7 @@ void add_new_fil() {
     }
 
     (*(fils+fils_size)).fil_number=fils_size;
-    (*(fils+fils_size)).head=malloc(sizeof(message_node));
+    //(*(fils+fils_size)).head=malloc(sizeof(message_node));
     (*(fils+fils_size)).last_multicasted_message=malloc(sizeof(message_node));
     (*(fils+fils_size)).subscribed=0;
     (*(fils+fils_size)).addrmult=malloc(sizeof(char)*16);
@@ -109,7 +109,7 @@ void send_message(uint8_t codereq, uint16_t id, uint16_t nb, uint16_t numfil, in
     msg->numfil = htons(numfil);
     msg->nb = htons(nb);
 
-    int nboctet = send(sock_client, msg, sizeof(server_message), 0);
+    ssize_t nboctet = send(sock_client, msg, sizeof(server_message), 0);
     if(nboctet <= 0)perror("send");
 }
 
@@ -149,19 +149,6 @@ void inscription_client(char * pseudo, int sock_client){
 
     // on envoie le message de l'inscription
     send_message(1, current_client->id, 0, 0, sock_client);
-}
-
-// Find the first empty fil
-uint16_t get_first_empty_numfil(){
-    return fils_size;
-    /*
-    for(uint16_t i=1; i<MAX_FIL; i++){
-        if(fils[i]==NULL){
-            return i;
-        }
-    }
-    return 0;
-     */
 }
 
 void add_message_to_fil(client_message *msg, uint16_t fil_number) {
@@ -212,7 +199,6 @@ void poster_billet(client_message *msg,int sock_client){
         add_new_fil();
         numfil=fils_size-1;
         printf("Numfil trouvé vide: %d\n",numfil);
-        printf("Assigned new numfil = %d\n",numfil);
     }
     else if(numfil>=fils_size){
         printf("Demande d'écriture sur un fil inexistant\n");
@@ -233,19 +219,157 @@ void poster_billet(client_message *msg,int sock_client){
     send_message(2,id,0,numfil,sock_client);
 }
 
+uint16_t nb_message_fil(uint16_t numfil){
+    message_node* current_node=fils[numfil].head;
+    if(current_node==NULL) return 0;
+    uint16_t count=0;
+    while(1){
+        count++;
+        if(current_node->next==NULL) return count;
+        current_node=current_node->next;
+    }
+}
+
+/**
+ * This function send the buffer with multiples messages if the total bytes exceed BUFSIZ
+ * Else data is appended to the buffer
+ * @param buffer the buffer of size BUFSIZ to append data to
+ * @param numfil the fil to copy messages from
+ * @param offset the offset of the buffer to write data from
+ * @param msg_nb the number of messages to copy from the fil
+ * @param sock_client the socket to send data to if
+ * @return the offset of the buffer where data was written
+ */
+size_t send_messages_from_fil(char *buffer,uint16_t numfil,size_t offset,uint16_t msg_nb,int sock_client){
+    // TODO vérifier que le BUFSIZ marche bien
+    fil* current_fil=&fils[numfil];
+    message_node* current_message=current_fil->head;
+
+    for(int i=0; i<msg_nb; ++i){
+        uint8_t datalen=current_message->msg->datalen;
+        // We verify that the current data + the data that will be added with the current message do not exceed BUFSIZ
+        // Else we send the buffer to the client
+        if((offset+sizeof(uint8_t)*22+sizeof(uint8_t)*datalen)>BUFSIZ){
+            ssize_t nboctet = send(sock_client, buffer,sizeof(char)*offset, 0);
+            if(nboctet <= 0)perror("send n billets to client");
+
+            free(buffer);
+            buffer=malloc(sizeof(char)*BUFSIZ);
+            memset(buffer,0,sizeof(char)*BUFSIZ);
+            offset=0;
+        }
+
+        // Copy the numfil to the buffer
+        uint16_t numfil_network=htons(numfil);
+        memcpy(buffer+offset,&numfil_network,sizeof(uint16_t));
+        offset+=sizeof(uint16_t);
+
+        // TODO Ajouter origine
+        // Copy the origin of the fil to the buffer
+        uint8_t* origine=malloc(sizeof(uint8_t)*10);
+        memset(origine,0,sizeof(uint8_t)*10);
+        memcpy(buffer+offset,origine,sizeof(uint8_t)*10);
+        offset+=sizeof(uint8_t)*10;
+
+        // Copy the pseudo of the people that wrote the message to the buffer
+        char* pseudo = pseudo_from_id(current_message->msg->id);
+        memcpy(buffer+offset,pseudo,sizeof(uint8_t)*10);
+        offset+=sizeof(uint8_t)*10;
+
+        // Copy the datalen and the message to the buffer
+        memcpy(buffer+offset,&datalen,sizeof(uint8_t));
+        offset+=sizeof(uint8_t);
+        memcpy(buffer+offset,current_message->msg->data,sizeof(uint8_t)*datalen);
+        offset+=sizeof(uint8_t)*datalen;
+
+        current_message=current_message->next;
+    }
+    return offset;
+}
+
+/**
+ * This function handles the sending of nb messages for the fil numfil
+ * @param msg the message received from the client
+ * @param sock_client the socket of the current client
+ */
 void demander_liste_billets(client_message *msg, int sock_client){
-    if(msg->numfil==0){
-        // The size of the list of fils is the same as the id of the next empty fil
-        // uint16_t numfil=get_first_empty_numfil();
+    uint16_t msg_numfil=ntohs(msg->numfil);
+    uint16_t msg_nb=ntohs(msg->nb);
+    uint16_t nb_fil;
+    // If the asked fil is 0 the server send messages from all fils
+    if(msg_numfil==0){
+        uint16_t total_nb;
+        // TODO ajouter nb_messages dans la structure
+        for(uint16_t i=0; i<fils_size; ++i){
+            nb_fil=nb_message_fil(i);
+            if(msg_nb==0 || msg_nb>nb_fil){
+                total_nb+=nb_fil;
+            }
+            else{
+                total_nb+=msg_nb;
+            }
+        }
+
+        // Initial server message with codereq 3, same id as client, the total number of messages and the total number of fils
+        send_message(3,get_id_entete(msg->entete.val),total_nb,fils_size,sock_client);
+
+        // The server send buffers of maximum BUFSIZ
+        char* buffer=malloc(sizeof(char)*BUFSIZ);
+        memset(buffer,0,sizeof(char)*BUFSIZ);
+        size_t offset=0;
+
+        for(int i=0; i<fils_size; ++i){
+            nb_fil=nb_message_fil(i);
+            // skip the fil 0 if empty
+            if(i==0 && nb_fil==0) continue;
+
+            uint16_t cpy_msg_nb=msg_nb;
+            if(cpy_msg_nb==0 || cpy_msg_nb>nb_fil){
+                cpy_msg_nb=nb_fil;
+            }
+
+            // The server send the buffer if the total bytes exceed BUFSIZ
+            // Else we get the offset of the current buffer to append more data
+            offset=send_messages_from_fil(buffer,i,offset,cpy_msg_nb,sock_client);
+        }
+
+        // If the last buffer is not yet sent, the server send it to the client
+        if(offset!=0){
+            ssize_t nboctet = send(sock_client, buffer,sizeof(char)*(offset), 0);
+            if(nboctet <= 0) perror("send n billets to client");
+        }
+
+        free(buffer);
     }
     else{
-        /*
-        if(fils[ntohs(msg->numfil)]==NULL){
+        // If the asked fil does not exist the server send a 31 code
+        if(msg_numfil>=fils_size){
             send_error_message(sock_client);
             return;
         }
-         */
+        nb_fil=nb_message_fil(msg_numfil);
+        if(msg_nb==0 || msg_nb>nb_fil){
+            msg_nb=nb_fil;
+        }
 
+        // Initial server message with codereq 3, same id as client, the total number of messages in the fil and the number of the fil
+        send_message(3,get_id_entete(msg->entete.val),msg_nb,msg_numfil,sock_client);
+
+        // The server send buffers of maximum BUFSIZ
+        char* buffer=malloc(sizeof(char)*BUFSIZ);
+        memset(buffer,0,sizeof(char)*BUFSIZ);
+        size_t offset=0;
+
+        // The server send the buffer if the total bytes exceed BUFSIZ
+        // Else we get the offset of the current buffer to send the correct amount of bytes to the client
+        offset=send_messages_from_fil(buffer,msg_numfil,offset,msg_nb,sock_client);
+
+        if(offset!=0){
+            ssize_t nboctet = send(sock_client, buffer,sizeof(char)*(offset), 0);
+            if(nboctet <= 0) perror("send n billets to client");
+        }
+
+        free(buffer);
     }
 }
 
@@ -302,7 +426,7 @@ void send_fil_notification(uint16_t fil_index) {
 void *send_notifications(void *arg){
     while(1){
         for(int i=0; i<fils_size; i++){
-            if(fils[i].head->msg!=NULL && fils[i].head != fils[i].last_multicasted_message
+            if( fils[i].head!=NULL && fils[i].head->msg!=NULL && fils[i].head != fils[i].last_multicasted_message
             && fils[i].subscribed>0){
                 // Send notifications for the fil
                 printf("Sending fil notif to fil %d\n",i);
@@ -319,7 +443,7 @@ void add_subscription_to_fil(client_message *received_msg, int sock_client){
     uint16_t numfil=ntohs(received_msg->numfil);
     int id=ntohs(received_msg->entete.val)>>5;
 
-    //Prepare the multicast address: start at base and add numfil
+    // Prepare the multicast address: start at base and add numfil
     const char *base_address="ff02::1:1";
     struct in6_addr multicast_address;
 
@@ -340,14 +464,14 @@ void add_subscription_to_fil(client_message *received_msg, int sock_client){
 
     uint8_t *addresse_a_envoyer;
 
-    // check if fil already has a multicast address
+    // Check if fil already has a multicast address
     if(strlen(fils[numfil].addrmult)>0){
         printf("Multicast for this fil is already initialised.\n");
         addresse_a_envoyer=(uint8_t *) fils[numfil].addrmult;
     }
     else{
         printf("INITIALISING MULTICAST ADDR.\n");
-        // if fil does not have a multicast address then initialise it
+        // If fil does not have a multicast address then initialise it
         int multicast_sock;
         if((multicast_sock=socket(AF_INET6,SOCK_DGRAM,0))<0){
             perror("erreur socket");
@@ -361,7 +485,7 @@ void add_subscription_to_fil(client_message *received_msg, int sock_client){
         inet_pton(AF_INET6,address_str,&server_addr.sin6_addr);
         server_addr.sin6_port=htons(MULTICAST_PORT); //TODO pick port?
 
-        // initialisation de l'interface locale autorisant le multicast IPv6
+        // Initialisation de l'interface locale autorisant le multicast IPv6
         int ifindex=0; //if_nametoindex("eth0");
         if(setsockopt(multicast_sock,IPPROTO_IPV6,IPV6_MULTICAST_IF,&ifindex,sizeof(ifindex))){
             perror("erreur initialisation de l'interface locale");
@@ -413,8 +537,9 @@ void add_subscription_to_fil(client_message *received_msg, int sock_client){
     // Serialize the server_subscription structure and send to clientfd
     char *serialized_msg=server_subscription_message_to_string(msg);
     size_t serialized_msg_size=sizeof(uint8_t)*22;
-    int nboctet=send(sock_client,serialized_msg,serialized_msg_size,0);
-    printf("DEBUG SENT %d OCTETS\n",nboctet);
+
+    ssize_t nboctet=send(sock_client,serialized_msg,serialized_msg_size,0);
+    printf("DEBUG SENT %zd OCTETS\n",nboctet);
     if(nboctet<=0)perror("send");
 }
 
@@ -557,57 +682,55 @@ void add_file(client_message *received_msg, int sock_client) {
 
 
 void *serve(void *arg){
-
-// on cherche codereq pour creer la structure correspondante et appeler la bonne fonction
-    int sock_client = *((int *) arg);
+    // on cherche codereq pour creer la structure correspondante et appeler la bonne fonction
+    int sock_client=*((int *) arg);
     char buffer[sizeof(client_message)];
-    while(1) {
-        int nb_octets = recv(sock_client, buffer, sizeof(buffer), 0);
+    ssize_t nb_octets=recv(sock_client,buffer,sizeof(buffer),0);
 
-        if (nb_octets < 0) {
-            perror("recv serve");
-            exit(1);
-            // gestion d'erreur
-        } else if (nb_octets == 0) {
-            printf("la connexion a été fermée\n");
-            break;
-            // la connexion a été fermée
+    if(nb_octets<0){
+        perror("recv serve");
+        exit(1);
+        // gestion d'erreur
+    }
+    else if(nb_octets==0){
+        printf("la connexion a été fermée\n");
+        close(sock_client);
+        return NULL;
+        // la connexion a été fermée
+    }
+    else{
+        // Vérification de la valeur de l'entête pour différencier les deux cas
+        entete *header=(entete *) buffer;
+        uint8_t codereq=ntohs(header->val) & 0x1F;
+        printf("CODEREQ %d\n",codereq); // DEBUG
+        if(codereq==1){
+            // le message reçu est de type inscription_message
+            inscription *insc=(inscription *) buffer;
+
+            inscription_client(insc->pseudo,sock_client);
         }
-        else {
-            // Vérification de la valeur de l'entête pour différencier les deux cas
-            entete *header = (entete *) buffer;
-            uint8_t codereq = ntohs(header->val) & 0x1F;
-            printf("CODEREQ %d\n", codereq); // DEBUG
-            if (codereq == 1) {
-                // le message reçu est de type inscription_message
-                inscription *insc = (inscription *) buffer;
+        else{
+            client_message *received_msg=string_to_client_message(buffer);
 
-                inscription_client(insc->pseudo, sock_client);
-            } else {
-
-                client_message *received_msg = string_to_client_message(buffer);
-
-                switch (codereq) {
-                    case 2:
-                        if(received_msg->nb!=0){
-                            send_error_message(sock_client);
-                        }
-                        else{
-                            poster_billet(received_msg, sock_client);
-                        }
-                        break;
-                    case 3:
-                        if(*received_msg->data!=0){
-                            send_error_message(sock_client);
-                        }
-                        else{
-                            demander_liste_billets(received_msg,sock_client);
-                        }
-                        break;
-                    case 4:
-                        printf("User wants to join fil %d\n", ntohs(received_msg->numfil));
-                        add_subscription_to_fil(received_msg, sock_client);
-                        break;
+            switch(codereq){
+                case 2:
+                    if(received_msg->nb!=0){
+                        send_error_message(sock_client);
+                    }else{
+                        poster_billet(received_msg,sock_client);
+                    }
+                    break;
+                case 3:
+                    if(*received_msg->data!=0){
+                        send_error_message(sock_client);
+                    }else{
+                        demander_liste_billets(received_msg,sock_client);
+                    }
+                    break;
+                case 4:
+                    printf("User wants to join fil %d\n",ntohs(received_msg->numfil));
+                    add_subscription_to_fil(received_msg,sock_client);
+                    break;
                     case 5:
                         if(received_msg->nb!=0){
                             send_error_message(sock_client);
@@ -622,6 +745,11 @@ void *serve(void *arg){
                 }
             }
         }
+
+    ssize_t ret=close(sock_client);
+    if(ret<0){
+        perror("close client's socket in thread");
+        exit(1);
     }
     return NULL;
 }
@@ -711,7 +839,7 @@ int main(){
             }
             //*** affichage de l'adresse du client ***
             char nom_dst[INET6_ADDRSTRLEN];
-            printf("client connecte : %s %d\n",inet_ntop(AF_INET6,&addrclient.sin6_addr,nom_dst,sizeof(nom_dst)),
+            printf("Client connecte : %s %d\n",inet_ntop(AF_INET6,&addrclient.sin6_addr,nom_dst,sizeof(nom_dst)),
                    htons(addrclient.sin6_port));
         }
     }

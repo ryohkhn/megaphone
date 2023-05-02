@@ -83,7 +83,7 @@ void print_n_tickets(char *server_msg,uint16_t numfil){
 
     uint16_t nb_fil_serv=ntohs(received_msg->numfil);
     uint16_t nb_serv=ntohs(received_msg->nb);
-    size_t count=6;
+    size_t count=sizeof(uint16_t)*3;
 
     if(numfil==0){
         printf("Nombre de fils à afficher: %d\n",nb_fil_serv);
@@ -104,7 +104,7 @@ void print_n_tickets(char *server_msg,uint16_t numfil){
         printf("\033[0;31m<%s>\033[0m ",pseudo);
         printf("%s\n",received_billet->data+1);
 
-        count+=sizeof(received_billet->numfil)+sizeof(uint8_t)*10+sizeof(uint8_t)*10+sizeof(uint8_t)*(*received_billet->data+1);
+        count+=sizeof(uint16_t)+sizeof(uint8_t)*10+sizeof(uint8_t)*10+sizeof(uint8_t)*((*received_billet->data)+1);
     }
     printf("\n");
 }
@@ -128,28 +128,41 @@ void request_n_tickets(res_inscription *i,uint16_t numfil,uint16_t n){
     }
     printf("Message envoyé au serveur.\n");
 
-    // reception d'un message
-    char* server_msg=malloc(sizeof(char)*SIZE_BUF);
-    memset(server_msg,0,sizeof(char)*SIZE_BUF);
+    ssize_t buffer_size = BUFSIZ;
+    char *buffer = malloc(sizeof(char)*buffer_size);
+    testMalloc(buffer);
 
-    int offset=0;
-    printf("retour du serveur: \n");
-    while(1){
-        ssize_t recu=recv(clientfd,server_msg+offset,sizeof(char) * SIZE_BUF,0);
-        if(recu<0){
-            perror("erreur lecture");
-            exit(4);
-        }
-        if(recu==0){
-            printf("serveur off\n");
-            break;
-        }
-        offset+=SIZE_BUF;
+    ssize_t bytes_received;
+    size_t total_bytes_received = 0;
 
-        server_msg=realloc(server_msg,sizeof(char)*(offset+SIZE_BUF));
+    while ((bytes_received = recv(clientfd, buffer + total_bytes_received, BUFSIZ, 0)) > 0) {
+        printf("receveid: %zd\n",bytes_received);
+        total_bytes_received += bytes_received;
+
+        // Check if the remaining buffer space is less than BUFSIZ
+        if (buffer_size - total_bytes_received < BUFSIZ) {
+            // Increase the buffer size by BUFSIZ
+            buffer_size += BUFSIZ;
+
+            // Reallocate the buffer to the new size
+            char *new_buffer = realloc(buffer, buffer_size);
+            if (!new_buffer) {
+                perror("realloc");
+                free(buffer);
+                return;
+            }
+
+            buffer = new_buffer;
+        }
     }
 
-    print_n_tickets(server_msg,numfil);
+    if (bytes_received < 0) {
+        perror("recv");
+        free(buffer);
+        return;
+    }
+
+    print_n_tickets(buffer,numfil);
 }
 
 res_inscription* send_inscription(inscription *i){
@@ -568,6 +581,7 @@ void run(){
                 exit(0);
         }
 
+        printf("Connexion fermée avec le serveur\n");
         close(clientfd);
     }
 }

@@ -22,7 +22,8 @@ void print_8bits(uint8_t n){
 
         printf("%u",bit);
     }
-    printf(" = %c\n",n);
+    printf("\n");
+    // printf(" = %c\n",n);
 }
 
 void print_bits(uint16_t n){
