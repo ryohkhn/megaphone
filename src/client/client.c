@@ -534,8 +534,7 @@ void print_ascii(){
            "                                                  \n");
 }
 
-res_inscription *test(){
-    char pseudo[]="testOui";
+res_inscription *inscription_client(char pseudo[10]){
     inscription *i=create_inscription(pseudo);
     return send_inscription(i);
 }
@@ -558,6 +557,7 @@ void run(){
         }
 
         char *reponse=malloc(1024*sizeof(char));
+        char pseudo[10];
         int nbfil=0;
         int n=0;
 
@@ -570,8 +570,14 @@ void run(){
 
         switch(choice){
             case 1:
-                res_ins=test();
-                user_id=res_ins->id;
+                printf("Please enter your username: ");
+                scanf("%s",pseudo);
+                if(strlen(pseudo)>10){
+                  printf("Error: The username must be 10 characters or less.\n");
+                  break;
+                }
+                res_ins = inscription_client(pseudo);
+                user_id = res_ins->id;
                 printf("id: %d\n",res_ins->id);
                 break;
             case 2:
