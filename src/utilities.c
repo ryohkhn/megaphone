@@ -11,6 +11,10 @@ uint16_t get_id_entete(uint16_t ent){
     return ntohs(ent)>>5;
 }
 
+uint16_t get_codereq_entete(uint16_t ent){
+    return ntohs(ent) & 0x1F;
+}
+
 uint16_t chars_to_uint16(char a,char b){
     return ((uint16_t)b << 8) | a;
 }
@@ -69,11 +73,11 @@ client_message *string_to_client_message(const char *buffer) {
     // Extract datalen from the buffer, located right after nb
     uint8_t datalen = buffer[sizeof(uint16_t) * 3];
 
-    // Allocate memory for data, including space for the null-terminator
-    msg->data = malloc(sizeof(uint8_t)*(datalen + 1));
+    // Allocate memory for data
+    msg->data = malloc(sizeof(uint8_t) * (datalen));
 
     // Copy the data from the buffer, starting after datalen
-    memcpy(msg->data, buffer + sizeof(uint16_t) * 3 + sizeof(uint8_t), sizeof(uint8_t)*(datalen + 1));
+    memcpy(msg->data, buffer + sizeof(uint16_t) * 3 + sizeof(uint8_t), sizeof(uint8_t)*(datalen));
 
     // Manually set the datalen as the first byte of the data array
     msg->datalen = datalen;
@@ -211,4 +215,12 @@ long size_file(FILE *file) {
     long taille = ftell(file);
     fseek(file, 0, SEEK_SET);
     return taille;
+}
+
+void handle_error(int codereq){
+    switch(codereq){
+        case 31:
+            printf("Erreur envoyée par le serveur\n");
+            break;
+    }
 }
