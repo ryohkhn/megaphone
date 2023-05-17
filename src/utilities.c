@@ -73,10 +73,10 @@ client_message *string_to_client_message(const char *buffer) {
     msg->data = malloc(sizeof(uint8_t)*(datalen + 1));
 
     // Copy the data from the buffer, starting after datalen
-    memcpy(msg->data, buffer + sizeof(uint16_t) * 3, sizeof(uint8_t)*(datalen + 1));
+    memcpy(msg->data, buffer + sizeof(uint16_t) * 3 + sizeof(uint8_t), sizeof(uint8_t)*(datalen + 1));
 
     // Manually set the datalen as the first byte of the data array
-    msg->data[0] = datalen;
+    msg->datalen = datalen;
 
     return msg;
 }
@@ -135,15 +135,14 @@ server_billet *string_to_server_billet(const char *buffer) {
 
     // Extract datalen from the buffer, located right after nb
     uint8_t datalen = buffer[sizeof(uint16_t) * 11];
+    billet->datalen = datalen;
 
     // Allocate memory for data, including space for the null-terminator
     billet->data = malloc(sizeof(uint8_t)*(datalen + 1));
 
     // Copy the data from the buffer, starting after datalen
-    memcpy(billet->data, buffer + sizeof(uint16_t) * 11, sizeof(uint8_t)*(datalen + 1));
+    memcpy(billet->data, buffer + sizeof(uint8_t) * 23, sizeof(uint8_t)*(datalen + 1));
 
-    // Manually set the datalen as the first byte of the data array
-    billet->data[0] = datalen;
 
     return billet;
 }
@@ -151,22 +150,17 @@ server_billet *string_to_server_billet(const char *buffer) {
 char *client_message_to_string(client_message *msg) {
     printf("\nUTILITIES---------------------------------\n");
     printf("msg->entete.val = %d\n", msg->entete.val);
-    printf("datalen = %d\n",msg->data[0]);
-    printf("msg->data = %d%s\n", msg->data[0], msg->data + 1);
+    printf("datalen = %d\n",msg->datalen);
+    printf("msg->data = %s\n", msg->data);
 
     size_t buffer_size = sizeof(uint16_t) * 3 + sizeof(char) * (msg->data[0] + 1);
-    printf("buffer_size = %zu\n", buffer_size);
     char *buffer = malloc(buffer_size);
 
     memcpy(buffer, &(msg->entete.val), sizeof(uint16_t));
-    printf("etape 1 buffer= %s\n", buffer);
     memcpy(buffer + sizeof(uint16_t), &(msg->numfil), sizeof(uint16_t));
-    printf("etape 2 buffer= %s\n", buffer);
     memcpy(buffer + sizeof(uint16_t) * 2, &(msg->nb), sizeof(uint16_t));
-    printf("etape 3 buffer= %s\n", buffer);
-    memcpy(buffer + sizeof(uint16_t) * 3, msg->data, 1 + msg->data[0]);
-    printf("client_message_to_string buffer = %s\n", buffer);
-    printf("fin de fonction\n");
+    memcpy(buffer + sizeof(uint16_t) * 3, &(msg->datalen), sizeof(uint8_t));
+    memcpy(buffer + sizeof(uint16_t) * 3 + sizeof(uint8_t), msg->data, 1 + msg->datalen);
 
     printf("entete %d \n",buffer[0]);
     printf("numfil %d \n",buffer[2]);
@@ -176,8 +170,8 @@ char *client_message_to_string(client_message *msg) {
 
     client_message * test = string_to_client_message(buffer);
     printf("test>entete.val = %d\n", test->entete.val);
-    printf("datalen = %d\n",test->data[0]);
-    printf("test->data = %d%s\n", test->data[0], test->data + 1);
+    printf("datalen = %d\n",test->datalen);
+    printf("test->data = %d%s\n", test->datalen, test->data);
     return buffer;
 }
 
@@ -218,5 +212,3 @@ long size_file(FILE *file) {
     fseek(file, 0, SEEK_SET);
     return taille;
 }
-
-

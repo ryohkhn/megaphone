@@ -159,12 +159,12 @@ void add_message_to_fil(client_message *msg, uint16_t fil_number) {
     current_fil->nb_messages++;
 
     message_node *new_node = malloc(sizeof(message_node));
-    new_node->msg=malloc(sizeof(message));
-    new_node->msg->datalen=*msg->data;
-    new_node->msg->id=get_id_entete(msg->entete.val);
+    new_node->msg = malloc(sizeof(message));
+    new_node->msg->datalen = msg->datalen;
+    new_node->msg->id = get_id_entete(msg->entete.val);
 
-    new_node->msg->data=malloc(sizeof(uint8_t)*new_node->msg->datalen);
-    memcpy(new_node->msg->data,msg->data+sizeof(uint8_t),new_node->msg->datalen);
+    new_node->msg->data = malloc(sizeof(uint8_t)*new_node->msg->datalen);
+    memcpy(new_node->msg->data,msg->data,new_node->msg->datalen);
 
     new_node->next = current_fil->head;
     current_fil->head = new_node;
@@ -177,12 +177,7 @@ char** retrieve_messages_from_fil(uint16_t fil_number) {
     char **messages = malloc(sizeof(char *) * 1024);
     int index = 0;
     while (current != NULL && current->msg != NULL) {
-        messages[index] = strdup((char *)(current->msg->data)); // Assuming the data starts at msg.data[1]
-        /*
-        printf("Message: %s\n",current->msg->data);
-        printf("Message de l'id: %d\n",current->msg->id);
-        printf("Datalen : %d\n",current->msg->datalen);
-        */
+        messages[index] = strdup((char *)(current->msg->data));
         index++;
         current = current->next;
     }
@@ -194,7 +189,7 @@ void poster_billet(client_message *msg,int sock_client){
     uint16_t id=get_id_entete(msg->entete.val);
 
     printf("Received message from user with id %d, to post to numfil %d\n",id,ntohs(msg->numfil));
-    printf("The message is: %s\n",(char *) (msg->data+1));
+    printf("The message is: %s\n",(char *) (msg->data));
 
     uint16_t numfil=ntohs(msg->numfil);
     printf("Numfil reçu: %d\n",numfil);
@@ -719,7 +714,7 @@ void *serve(void *arg){
                     }
                     break;
                 case 3:
-                    if(*received_msg->data!=0){
+                    if(received_msg->datalen!=0){
                         send_error_message(sock_client);
                     }else{
                         demander_liste_billets(received_msg,sock_client);

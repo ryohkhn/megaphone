@@ -27,8 +27,8 @@ void send_message(res_inscription *i,char *data,int nbfil){
     msg->numfil = htons(nbfil);
     uint8_t datalen = strlen(data)+1;
     msg->data = malloc(sizeof(uint8_t)*((datalen)+1));
-    *msg->data = datalen;
-    memcpy(msg->data+1,data,sizeof(char)*(datalen));
+    msg->datalen = datalen;
+    memcpy(msg->data,data,sizeof(char)*(datalen));
 
     // Serialize the client_message structure and send to clientfd
     char *serialized_msg = client_message_to_string(msg);
@@ -76,7 +76,7 @@ char* pseudo_nohashtags(uint8_t* pseudo){
 
 void print_n_tickets(char *server_msg,uint16_t numfil){
     // TODO Vérifier erreur CODEREQ 31
-    server_message* received_msg=string_to_server_message(server_msg);
+    server_message* received_msg = string_to_server_message(server_msg);
 
     printf("ID local: %d\n",user_id);
     printf("ID reçu: %d\n",get_id_entete(received_msg->entete.val));
@@ -106,9 +106,9 @@ void print_n_tickets(char *server_msg,uint16_t numfil){
         }
         char* pseudo=pseudo_nohashtags(received_billet->pseudo);
         printf("\n\033[0;31m<%s>\033[0m ",pseudo);
-        printf("%s\n",received_billet->data+1);
+        printf("%s\n",received_billet->data);
 
-        count+=sizeof(uint16_t)+sizeof(uint8_t)*10+sizeof(uint8_t)*10+sizeof(uint8_t)*((*received_billet->data)+1);
+        count+=sizeof(uint16_t)+sizeof(uint8_t)*10+sizeof(uint8_t)*10+sizeof(uint8_t)*(received_billet->datalen+1);
     }
     printf("\n");
 }
@@ -119,8 +119,8 @@ void request_n_tickets(res_inscription *i,uint16_t numfil,uint16_t n){
     msg->entete.val=create_entete(3,i->id)->val;
     msg->numfil=htons(numfil);
     msg->nb=htons(n);
+    msg->datalen=0;
     msg->data=malloc(sizeof(uint8_t)*2);
-    *(msg->data)=0;
 
     printf("\nEntête envoyée au serveur:\n");
     print_bits(ntohs(msg->entete.val));
@@ -363,8 +363,8 @@ void add_file(int nbfil) {
     *msg->data = datalen;
     memcpy(msg->data + 1, filename, sizeof(char) * (datalen));
     printf("msg->entete.val = %d\n", msg->entete.val);
-    printf("datalen = %d\n", datalen);
-    printf("msg->data = %d%s\n", msg->data[0], msg->data + 1);
+    printf("datalen = %d\n", ntohs(datalen));
+    printf("msg->data = %d%s\n", msg->datalen, msg->data + 1);
     //msg->data + 1 = "test";
     //printf("msg->data = %d%s\n", msg->data[0], msg->data + 1);
 
@@ -376,7 +376,7 @@ void add_file(int nbfil) {
 
     printf("Envoi du message au serveur\n");
     ssize_t ecrit = send(clientfd, serialized_msg,
-                         sizeof(uint16_t) * 3 + sizeof(char) * (msg->data[0] + 1), 0);
+                         sizeof(uint16_t) * 3 + sizeof(char) * (msg->datalen + 1), 0);
     if (ecrit <= 0) {
         perror("Erreur ecriture");
         exit(3);

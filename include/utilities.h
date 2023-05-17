@@ -32,6 +32,7 @@ typedef struct client_message{
     entete entete;
     uint16_t numfil;
     uint16_t nb;
+    uint8_t datalen;
     uint8_t *data;
 } client_message;
 
@@ -45,6 +46,7 @@ typedef struct server_billet{
     uint16_t numfil;
     uint8_t *origine;
     uint8_t *pseudo;
+    uint8_t datalen;
     uint8_t *data;
 } server_billet;
 
