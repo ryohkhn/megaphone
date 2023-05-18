@@ -58,11 +58,14 @@ void add_new_fil(char* originaire) {
     (*(fils+fils_size)).fil_number=fils_size;
     //(*(fils+fils_size)).head=malloc(sizeof(message_node));
     (*(fils+fils_size)).last_multicasted_message=malloc(sizeof(message_node));
+    testMalloc((*(fils+fils_size)).last_multicasted_message);
     (*(fils+fils_size)).subscribed=0;
     (*(fils+fils_size)).originaire=malloc(sizeof(uint8_t)*10);
+    testMalloc((*(fils+fils_size)).originaire);
     memcpy((*(fils+fils_size)).originaire,originaire,sizeof(uint8_t)*10);
     (*(fils+fils_size)).nb_messages=0;
     (*(fils+fils_size)).addrmult=malloc(sizeof(char)*16);
+    testMalloc((*(fils+fils_size)).addrmult);
     fils_size++;
 }
 
@@ -77,7 +80,6 @@ char *pseudo_from_id(int id){
             if(current_client->id==id) break;
             current_client=current_client->suivant;
         }
-        printf("Pseudo = %s\n",current_client->pseudo);
         return current_client->pseudo;
     }
 }
@@ -85,9 +87,9 @@ char *pseudo_from_id(int id){
 char *message_to_notification(message *msg,uint16_t numfil){
     size_t buffer_size = sizeof(uint8_t) * 34;
     char *buffer = malloc(buffer_size);
+    testMalloc(buffer);
 
     uint16_t entete=create_entete(SUBSCRIBE,0)->val;
-
     memcpy(buffer, &(entete), sizeof(uint16_t));
     memcpy(buffer + sizeof(uint16_t), &(numfil), sizeof(uint16_t));
 
@@ -105,8 +107,8 @@ char *message_to_notification(message *msg,uint16_t numfil){
 }
 
 void send_message(request_type codereq, uint16_t id, uint16_t nb, uint16_t numfil, int sock_client){
-    // TODO SERIALIZE EN STRING
     server_message * msg = malloc(sizeof(server_message));
+    testMalloc(msg);
 
     msg->entete.val = create_entete(codereq,id)->val;
     msg->numfil = htons(numfil);
@@ -136,8 +138,10 @@ void inscription_client(char * pseudo, int sock_client){
     id_dernier_client += 1;
     if(current_client == NULL){
         current_client = malloc(sizeof(list_client));
+        testMalloc(current_client);
         current_client->id = id_dernier_client;
         current_client->pseudo = malloc(sizeof(char) * strlen(pseudo));
+        testMalloc(current_client->pseudo);
         current_client->pseudo = pseudo;
         printf("Created first client with pseudo: %s and id: %ld\n", current_client->pseudo, current_client->id);
     }
@@ -149,15 +153,16 @@ void inscription_client(char * pseudo, int sock_client){
 
         // on crée le suivant
         current_client->suivant = malloc(sizeof(list_client));
+        testMalloc(current_client->suivant);
         current_client = current_client->suivant;
 
         // on modifie le suivant
         current_client->id = id_dernier_client;
         current_client->pseudo = malloc(sizeof(char) * (strlen(pseudo) + 1));
+        testMalloc(current_client->pseudo);
         strncpy(current_client->pseudo, pseudo, strlen(pseudo));
         current_client->pseudo[strlen(pseudo)] = '\0';
         printf("Created client with pseudo: %s and id: %ld\n", current_client->pseudo, current_client->id);
-
     }
     pthread_mutex_unlock(&client_mutex);
 
@@ -171,11 +176,13 @@ void add_message_to_fil(client_message *msg, uint16_t fil_number) {
     current_fil->nb_messages++;
 
     message_node *new_node = malloc(sizeof(message_node));
+    testMalloc(new_node);
     new_node->msg = malloc(sizeof(message));
     new_node->msg->datalen = msg->datalen;
     new_node->msg->id = get_id_entete(msg->entete.val);
 
     new_node->msg->data = malloc(sizeof(uint8_t)*new_node->msg->datalen);
+    testMalloc(new_node->msg->data);
     memcpy(new_node->msg->data,msg->data,new_node->msg->datalen);
 
     new_node->next = current_fil->head;
@@ -188,6 +195,7 @@ char** retrieve_messages_from_fil(uint16_t fil_number) {
 
     message_node *current = current_fil->head;
     char **messages = malloc(sizeof(char *) * 1024);
+    testMalloc(messages);
     int index = 0;
     while (current != NULL && current->msg != NULL) {
         messages[index] = strdup((char *)(current->msg->data));
@@ -257,6 +265,7 @@ size_t send_messages_from_fil(char *buffer,uint16_t numfil,size_t offset,uint16_
 
             free(buffer);
             buffer=malloc(sizeof(char)*BUFSIZ);
+            testMalloc(buffer);
             memset(buffer,0,sizeof(char)*BUFSIZ);
             offset=0;
         }
@@ -312,6 +321,7 @@ void demander_liste_billets(client_message *msg, int sock_client){
 
         // The server send buffers of maximum BUFSIZ
         char* buffer=malloc(sizeof(char)*BUFSIZ);
+        testMalloc(buffer);
         memset(buffer,0,sizeof(char)*BUFSIZ);
         size_t offset=0;
 
@@ -355,6 +365,7 @@ void demander_liste_billets(client_message *msg, int sock_client){
 
         // The server send buffers of maximum BUFSIZ
         char* buffer=malloc(sizeof(char)*BUFSIZ);
+        testMalloc(buffer);
         memset(buffer,0,sizeof(char)*BUFSIZ);
         size_t offset=0;
 
@@ -497,11 +508,13 @@ void add_subscription_to_fil(client_message *received_msg, int sock_client){
         }
 
         addresse_a_envoyer=malloc(sizeof(uint8_t)*16); // Allocate memory for the address
+        testMalloc(addresse_a_envoyer);
         memcpy(addresse_a_envoyer,server_addr.sin6_addr.s6_addr,sizeof(uint8_t)*16); // Copy the address bytes
 
         // Allocate memory for fils[numfil]->addrmult if it's not already allocated
         if(fils[numfil].addrmult==NULL){
             fils[numfil].addrmult=malloc(sizeof(uint8_t)*16);
+            testMalloc(fils[numfil].addrmult);
         }
 
         // Copy the content of addresse_a_envoyer into fils[numfil]->addrmult
@@ -513,10 +526,12 @@ void add_subscription_to_fil(client_message *received_msg, int sock_client){
 
     //sending response to client
     server_subscription_message *msg=malloc(sizeof(server_subscription_message));
+    testMalloc(msg);
     msg->entete.val=create_entete(SUBSCRIBE,id)->val;
     msg->numfil=htons(numfil);
     msg->nb=htons(MULTICAST_PORT);
     msg->addrmult=malloc(sizeof(uint8_t)*16);
+    testMalloc(msg->addrmult);
     memcpy(msg->addrmult,addresse_a_envoyer,sizeof(uint8_t)*16);
 
     for(int i=0; i<16; i++){
@@ -803,6 +818,7 @@ int main(){
 
     // Initialise the fils
     fils = malloc(sizeof(fil));
+    testMalloc(fils);
     init_fil_mutex();
 
     // The fil 0 has no originaire
@@ -810,6 +826,7 @@ int main(){
 
     //Initialise the client list
     clients = malloc(sizeof(list_client));
+    testMalloc(clients);
 
     // Start the notification thread
     pthread_t notification_thread;
@@ -821,6 +838,7 @@ int main(){
 
         //*** on crée la varaiable sur le tas ***
         int *sock_client=malloc(sizeof(int));
+        testMalloc(sock_client);
 
         //*** le serveur accepte une connexion et initialise la socket de communication avec le client ***
         *sock_client=accept(sock,(struct sockaddr *) &addrclient,&size);
@@ -837,6 +855,7 @@ int main(){
             printf("Client connecte : %s %d\n",inet_ntop(AF_INET6,&addrclient.sin6_addr,nom_dst,sizeof(nom_dst)),
                    htons(addrclient.sin6_port));
         }
+        else free(sock_client);
     }
     pthread_cancel(notification_thread);
 
@@ -844,5 +863,7 @@ int main(){
     printf("Closing sock\n");
     close(sock);
 
+    free(clients);
+    free(fils);
     return 0;
 }

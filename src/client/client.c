@@ -9,24 +9,23 @@ inscription *create_inscription(char pseudo[]){
             new_pseudo[i]='#';
         }
     }
-
     inscription *inscription_message = malloc(sizeof(inscription));
     testMalloc(inscription_message);
 
     inscription_message->entete.val=create_entete(REGISTER,0)->val;
-
     strncpy(inscription_message->pseudo,new_pseudo,10);
-
     return inscription_message;
 }
 
 void send_message(res_inscription *i,char *data,int nbfil){
     client_message *msg = malloc(sizeof(client_message));
+    testMalloc(msg);
 
     msg->entete.val = create_entete(POST_MESSAGE,i->id)->val;
     msg->numfil = htons(nbfil);
     uint8_t datalen = strlen(data)+1;
     msg->data = malloc(sizeof(uint8_t)*((datalen)+1));
+    testMalloc(data);
     msg->datalen = datalen;
     memcpy(msg->data,data,sizeof(char)*(datalen));
 
@@ -43,6 +42,8 @@ void send_message(res_inscription *i,char *data,int nbfil){
     //*** reception d'un message ***
 
     char *buffer = malloc(sizeof(uint16_t)*3);
+    testMalloc(buffer);
+
     memset(buffer,0,sizeof(uint16_t)*3);
     ssize_t recu = recv(clientfd,buffer,sizeof(uint16_t)*3,0);
 
@@ -67,11 +68,11 @@ void send_message(res_inscription *i,char *data,int nbfil){
 
 char* pseudo_nohashtags(uint8_t* pseudo){
     int len = 10;
-    while (len > 0 && pseudo[len-1] == '#') {
+    while (len > 0 && pseudo[len-1] == '#')
         len--;
-    }
 
     char* str=malloc(sizeof(char)*11);
+    testMalloc(str);
     memcpy(str, pseudo, len);
     str[len] = '\0';
 
@@ -126,12 +127,14 @@ void print_n_tickets(char *server_msg,uint16_t numfil){
 
 void request_n_tickets(res_inscription *i,uint16_t numfil,uint16_t n){
     client_message *msg=malloc(sizeof(client_message));
+    testMalloc(msg);
 
     msg->entete.val=create_entete(LIST_MESSAGES,i->id)->val;
     msg->numfil=htons(numfil);
     msg->nb=htons(n);
     msg->datalen=0;
     msg->data=malloc(sizeof(uint8_t)*2);
+    testMalloc(msg->data);
 
     printf("\nEntête envoyée au serveur:\n");
     print_bits(ntohs(msg->entete.val));
@@ -161,12 +164,7 @@ void request_n_tickets(res_inscription *i,uint16_t numfil,uint16_t n){
 
             // Reallocate the buffer to the new size
             char *new_buffer = realloc(buffer, buffer_size);
-            if (!new_buffer) {
-                perror("realloc");
-                free(buffer);
-                return;
-            }
-
+            testMalloc(new_buffer);
             buffer = new_buffer;
         }
     }
@@ -176,7 +174,6 @@ void request_n_tickets(res_inscription *i,uint16_t numfil,uint16_t n){
         free(buffer);
         return;
     }
-
     print_n_tickets(buffer,numfil);
 }
 
@@ -190,6 +187,7 @@ res_inscription* send_inscription(inscription *i){
     printf("demande d'inscription envoyée\n");
 
     char *buffer = malloc(sizeof(uint16_t)*3);
+    testMalloc(buffer);
     memset(buffer,0,sizeof(uint16_t)*3);
 
     //*** reception d'un message ***
@@ -216,7 +214,8 @@ res_inscription* send_inscription(inscription *i){
     print_bits(ntohs(server_msg->nb));
 
 
-    res_inscription *res=malloc(sizeof(res_inscription));
+    res_inscription *res = malloc(sizeof(res_inscription));
+    testMalloc(res);
     res->id=get_id_entete(server_msg->entete.val);
 
     return res;
@@ -296,6 +295,7 @@ void *listen_multicast_messages(void *arg) {
 
 void subscribe_to_fil(uint16_t fil_number) {
     client_message *msg = malloc(sizeof(client_message));
+    testMalloc(msg);
     msg->entete.val=create_entete(SUBSCRIBE,user_id)->val;
     msg->numfil = htons(fil_number);
 
@@ -307,6 +307,7 @@ void subscribe_to_fil(uint16_t fil_number) {
 
     // receive response from server with the multicast address
     char *server_msg = malloc(sizeof(char) * 22);
+    testMalloc(server_msg);
     memset(server_msg,0,sizeof(char) * 22);
 
     ssize_t recu=recv(clientfd,server_msg,sizeof(char) * 22 ,0);
@@ -571,7 +572,8 @@ void run(){
             if(choice>=1 && choice<=6) break;
         }
 
-        char *reponse=malloc(1024*sizeof(char));
+        char *response=malloc(1024*sizeof(char));
+        testMalloc(response);
         size_t len = 0;
 
         char pseudo[10];
@@ -605,19 +607,19 @@ void run(){
                 getchar();  // Consume the newline character
 
                 printf("Message to post: ");
-                read = getline(&reponse, &len, stdin);
+                read = getline(&response, &len, stdin);
 
                 if (read != -1) {
                   // Remove the newline character from the end of the line
-                  reponse[strcspn(reponse, "\n")] = '\0';
-                  printf("NBFIL: %d\nInput: %s\n", nbfil, reponse);
+                  response[strcspn(response, "\n")] = '\0';
+                  printf("NBFIL: %d\nInput: %s\n", nbfil, response);
                 }
                 else {
                   perror("getline() failed\n");
                   exit(1);
                 }
 
-                send_message(res_ins,reponse,nbfil);
+                send_message(res_ins,response,nbfil);
                 break;
             case 3:
                 printf("Please enter the thread: ");
@@ -645,6 +647,7 @@ void run(){
 
         printf("Connexion fermée avec le serveur\n");
         close(clientfd);
+        free(response);
     }
 }
 

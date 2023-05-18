@@ -2,6 +2,7 @@
 
 void testMalloc(void *ptr){
     if(ptr==NULL){
+        free(ptr);
         perror("Erreur de malloc() ou realloc().\n");
         exit(1);
     }
@@ -42,6 +43,7 @@ void print_bits(uint16_t n){
 
 entete *create_entete(uint8_t codereq,uint16_t id){
     entete* entete=malloc(sizeof(struct entete));
+    testMalloc(entete);
     entete->val=id;
     entete->val=entete->val<<5;
     entete->val=entete->val | codereq;
@@ -65,6 +67,7 @@ void print_inscription_bits(inscription *msg){
 client_message *string_to_client_message(const char *buffer) {
 
     client_message *msg = malloc(sizeof(client_message));
+    testMalloc(msg);
 
     // Copy entete, numfil, and nb from the buffer
     memcpy(&(msg->entete.val), buffer, sizeof(uint16_t));
@@ -76,6 +79,7 @@ client_message *string_to_client_message(const char *buffer) {
 
     // Allocate memory for data
     msg->data = malloc(sizeof(uint8_t) * (datalen));
+    testMalloc(msg->data);
 
     // Copy the data from the buffer, starting after datalen
     memcpy(msg->data, buffer + sizeof(uint16_t) * 3 + sizeof(uint8_t), sizeof(uint8_t)*(datalen));
@@ -88,6 +92,7 @@ client_message *string_to_client_message(const char *buffer) {
 
 server_message *string_to_server_message(const char *buffer) {
     server_message *msg = malloc(sizeof(server_message));
+    testMalloc(msg);
 
     // Copy entete, numfil, and nb from the buffer
     memcpy(&(msg->entete.val), buffer, sizeof(uint16_t));
@@ -100,6 +105,7 @@ server_message *string_to_server_message(const char *buffer) {
 char* server_message_to_string(server_message *msg){
     size_t buffer_size=sizeof(uint16_t)*3;
     char *buffer=malloc(buffer_size);
+    testMalloc(buffer);
 
     memcpy(buffer,&(msg->entete.val),sizeof(uint16_t));
     memcpy(buffer+sizeof(uint16_t),&(msg->numfil),sizeof(uint16_t));
@@ -111,6 +117,7 @@ char* server_message_to_string(server_message *msg){
 char *server_subscription_message_to_string(server_subscription_message *msg){
     size_t buffer_size=sizeof(uint8_t)*22;
     char *buffer=malloc(buffer_size);
+    testMalloc(buffer);
 
     memcpy(buffer,&(msg->entete.val),sizeof(uint16_t));
     memcpy(buffer+sizeof(uint16_t),&(msg->numfil),sizeof(uint16_t));
@@ -122,9 +129,11 @@ char *server_subscription_message_to_string(server_subscription_message *msg){
 
 server_subscription_message *string_to_server_subscription_message(const char *buffer) {
     server_subscription_message *msg = malloc(sizeof(server_subscription_message));
+    testMalloc(msg);
 
     // Allocate memory for the address
     msg->addrmult = malloc(sizeof(uint8_t) * 16);
+    testMalloc(msg->addrmult);
 
     // Copy entete, numfil, and nb from the buffer
     memcpy(&(msg->entete.val), buffer, sizeof(uint16_t));
@@ -139,14 +148,17 @@ server_subscription_message *string_to_server_subscription_message(const char *b
 
 server_billet *string_to_server_billet(const char *buffer) {
     server_billet *billet= malloc(sizeof(server_billet));
+    testMalloc(billet);
 
     // Copy entete, numfil, and nb from the buffer
     memcpy(&(billet->numfil), buffer, sizeof(uint16_t));
 
     billet->origine = malloc(sizeof(uint8_t)*10);
+    testMalloc(billet->origine);
     memcpy(billet->origine, buffer+sizeof(uint16_t), sizeof(uint8_t)*10);
 
     billet->pseudo = malloc(sizeof(uint8_t)*10);
+    testMalloc(billet->pseudo);
     memcpy(billet->pseudo, buffer+sizeof(uint16_t)*6, sizeof(uint8_t)*10);
 
     // Extract datalen from the buffer, located right after nb
@@ -155,6 +167,7 @@ server_billet *string_to_server_billet(const char *buffer) {
 
     // Allocate memory for data, including space for the null-terminator
     billet->data = malloc(sizeof(uint8_t)*(datalen + 1));
+    testMalloc(billet->data);
 
     // Copy the data from the buffer, starting after datalen
     memcpy(billet->data, buffer + sizeof(uint8_t) * 23, sizeof(uint8_t)*(datalen + 1));
@@ -172,6 +185,7 @@ char *client_message_to_string(client_message *msg) {
 */
     size_t buffer_size = sizeof(uint16_t) * 3 + sizeof(char) * (msg->datalen + 1);
     char *buffer = malloc(buffer_size);
+    testMalloc(buffer);
 
     memcpy(buffer, &(msg->entete.val), sizeof(uint16_t));
     memcpy(buffer + sizeof(uint16_t), &(msg->numfil), sizeof(uint16_t));
@@ -184,7 +198,7 @@ char *client_message_to_string(client_message *msg) {
     printf("nb %d \n",buffer[2]);
     printf("datalen %d \n",buffer[6]);
     printf("data %s \n",buffer + 7);
-    
+
     client_message * test = string_to_client_message(buffer);
     printf("test>entete.val = %d\n", test->entete.val);
     printf("datalen = %d\n",test->datalen);
@@ -196,6 +210,7 @@ char *client_message_to_string(client_message *msg) {
 
 notification *string_to_notification(const char *buffer){
     notification *notification=malloc(sizeof(server_billet));
+    testMalloc(notification);
 
     // Copy entete and numfil from the buffer
     memcpy(&(notification->entete),buffer,sizeof(uint16_t));
@@ -215,6 +230,8 @@ notification *string_to_notification(const char *buffer){
 
 client_message *copy_client_message(client_message *msg) {
     client_message *copy = malloc(sizeof(client_message));
+    testMalloc(copy);
+
     copy->entete = msg->entete;
     copy->numfil = msg->numfil;
     copy->nb = msg->nb;
