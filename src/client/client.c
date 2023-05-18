@@ -13,7 +13,7 @@ inscription *create_inscription(char pseudo[]){
     inscription *inscription_message = malloc(sizeof(inscription));
     testMalloc(inscription_message);
 
-    inscription_message->entete.val=create_entete(1,0)->val;
+    inscription_message->entete.val=create_entete(REGISTER,0)->val;
 
     strncpy(inscription_message->pseudo,new_pseudo,10);
 
@@ -23,7 +23,7 @@ inscription *create_inscription(char pseudo[]){
 void send_message(res_inscription *i,char *data,int nbfil){
     client_message *msg = malloc(sizeof(client_message));
 
-    msg->entete.val = create_entete(2,i->id)->val;
+    msg->entete.val = create_entete(POST_MESSAGE,i->id)->val;
     msg->numfil = htons(nbfil);
     uint8_t datalen = strlen(data)+1;
     msg->data = malloc(sizeof(uint8_t)*((datalen)+1));
@@ -117,7 +117,7 @@ void print_n_tickets(char *server_msg,uint16_t numfil){
 void request_n_tickets(res_inscription *i,uint16_t numfil,uint16_t n){
     client_message *msg=malloc(sizeof(client_message));
 
-    msg->entete.val=create_entete(3,i->id)->val;
+    msg->entete.val=create_entete(LIST_MESSAGES,i->id)->val;
     msg->numfil=htons(numfil);
     msg->nb=htons(n);
     msg->datalen=0;
@@ -282,7 +282,7 @@ void *listen_multicast_messages(void *arg) {
 
 void subscribe_to_fil(uint16_t fil_number) {
     client_message *msg = malloc(sizeof(client_message));
-    msg->entete.val=create_entete(4,user_id)->val;
+    msg->entete.val=create_entete(SUBSCRIBE,user_id)->val;
     msg->numfil = htons(fil_number);
 
     ssize_t ecrit=send(clientfd,msg,sizeof(uint16_t)*3+sizeof(uint8_t)*1,0);
@@ -324,7 +324,7 @@ void add_file(int nbfil) {
     // on crée le message du client au serveur
     client_message *msg = malloc(sizeof(client_message));
 
-    msg->entete.val = create_entete(5, user_id)->val;
+    msg->entete.val = create_entete(UPLOAD_FILE, user_id)->val;
     msg->nb = htons(0);
     msg->numfil = htons(nbfil);
 

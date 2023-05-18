@@ -86,7 +86,7 @@ char *message_to_notification(message *msg,uint16_t numfil){
     size_t buffer_size = sizeof(uint8_t) * 34;
     char *buffer = malloc(buffer_size);
 
-    uint16_t entete=create_entete(4,0)->val;
+    uint16_t entete=create_entete(SUBSCRIBE,0)->val;
 
     memcpy(buffer, &(entete), sizeof(uint16_t));
     memcpy(buffer + sizeof(uint16_t), &(numfil), sizeof(uint16_t));
@@ -104,7 +104,7 @@ char *message_to_notification(message *msg,uint16_t numfil){
     return buffer;
 }
 
-void send_message(uint8_t codereq, uint16_t id, uint16_t nb, uint16_t numfil, int sock_client){
+void send_message(request_type codereq, uint16_t id, uint16_t nb, uint16_t numfil, int sock_client){
     // TODO SERIALIZE EN STRING
     server_message * msg = malloc(sizeof(server_message));
 
@@ -294,7 +294,7 @@ void demander_liste_billets(client_message *msg, int sock_client){
             }
         }
         // Initial server message with codereq 3, same id as client, the total number of messages and the total number of fils
-        send_message(3,get_id_entete(msg->entete.val),total_nb,fils_size,sock_client);
+        send_message(LIST_MESSAGES,get_id_entete(msg->entete.val),total_nb,fils_size,sock_client);
 
         // The server send buffers of maximum BUFSIZ
         char* buffer=malloc(sizeof(char)*BUFSIZ);
@@ -337,7 +337,7 @@ void demander_liste_billets(client_message *msg, int sock_client){
         }
 
         // Initial server message with codereq 3, same id as client, the total number of messages in the fil and the number of the fil
-        send_message(3,get_id_entete(msg->entete.val),msg_nb,msg_numfil,sock_client);
+        send_message(LIST_MESSAGES,get_id_entete(msg->entete.val),msg_nb,msg_numfil,sock_client);
 
         // The server send buffers of maximum BUFSIZ
         char* buffer=malloc(sizeof(char)*BUFSIZ);
@@ -506,7 +506,7 @@ void add_subscription_to_fil(client_message *received_msg, int sock_client){
 
     //sending response to client
     server_subscription_message *msg=malloc(sizeof(server_subscription_message));
-    msg->entete.val=create_entete(4,id)->val;
+    msg->entete.val=create_entete(SUBSCRIBE,id)->val;
     msg->numfil=htons(numfil);
     msg->nb=htons(MULTICAST_PORT);
     msg->addrmult=malloc(sizeof(uint8_t)*16);
