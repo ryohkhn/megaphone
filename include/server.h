@@ -9,9 +9,15 @@
 
 // Maximum size of numfil possible (2^16 - 1)
 #define MAX_FIL 65536
+pthread_mutex_t fil_mutex[MAX_FIL];
+void init_fil_mutex() {
+    for (int i = 0; i < MAX_FIL; i++) {
+        pthread_mutex_init(&fil_mutex[i], NULL);
+    }
+}
 
 uint16_t id_dernier_client = 0;
-
+pthread_mutex_t client_mutex = PTHREAD_MUTEX_INITIALIZER;
 list_client * clients;
 
 // Liste des listes chainees pour les messages postes dans un fil

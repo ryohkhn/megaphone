@@ -120,8 +120,9 @@ void send_error_message(int sock_client){
     send_message(31,0,0,0,sock_client);
 }
 
-// TODO mutex
+
 void inscription_client(char * pseudo, int sock_client){
+  pthread_mutex_lock(&client_mutex);
     list_client * current_client = clients;
     id_dernier_client += 1;
     if(current_client == NULL){
@@ -149,12 +150,14 @@ void inscription_client(char * pseudo, int sock_client){
         printf("Created client with pseudo: %s and id: %ld\n", current_client->pseudo, current_client->id);
 
     }
+    pthread_mutex_unlock(&client_mutex);
 
     // on envoie le message de l'inscription
     send_message(1, current_client->id, 0, 0, sock_client);
 }
 
 void add_message_to_fil(client_message *msg, uint16_t fil_number) {
+    pthread_mutex_lock(&fil_mutex[fil_number]);
     fil* current_fil = &fils[fil_number];
     current_fil->nb_messages++;
 
@@ -168,6 +171,7 @@ void add_message_to_fil(client_message *msg, uint16_t fil_number) {
 
     new_node->next = current_fil->head;
     current_fil->head = new_node;
+    pthread_mutex_unlock(&fil_mutex[fil_number]);
 }
 
 char** retrieve_messages_from_fil(uint16_t fil_number) {
@@ -799,6 +803,7 @@ int main(){
 
     // Initialise the fils
     fils = malloc(sizeof(fil));
+    init_fil_mutex();
     // The fil 0 has no originaire
     add_new_fil("");
 
