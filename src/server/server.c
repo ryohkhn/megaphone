@@ -681,7 +681,6 @@ void *serve(void *arg){
     int sock_client=*((int *) arg);
     char buffer[sizeof(client_message) + sizeof(char)*BUFSIZ];
     ssize_t nb_octets=recv(sock_client,buffer,sizeof(buffer),0);
-    printf("RECEIVED %ld octets\n", nb_octets);
 
     if(nb_octets<0){
         perror("recv serve");
@@ -696,51 +695,45 @@ void *serve(void *arg){
     }
     else{
         // Vérification de la valeur de l'entête pour différencier les deux cas
-        entete *header=(entete *) buffer;
-        uint8_t codereq=ntohs(header->val) & 0x1F;
+        entete *header = (entete *) buffer;
+        request_type codereq = (request_type) ntohs(header->val) & 0x1F;
+        inscription *insc = NULL;
         printf("CODEREQ %d\n",codereq); // DEBUG
-        if(codereq==1){
-            // le message reçu est de type inscription_message
-            inscription *insc=(inscription *) buffer;
 
-            inscription_client(insc->pseudo,sock_client);
-        }
-        else{
-            client_message *received_msg=string_to_client_message(buffer);
+        client_message *received_msg=string_to_client_message(buffer);
 
-            switch(codereq){
-                case 2:
-                    if(received_msg->nb!=0){
-                        send_error_message(sock_client);
-                    }else{
-                        poster_billet(received_msg,sock_client);
-                    }
-                    break;
-                case 3:
-                    if(received_msg->datalen!=0){
-                        send_error_message(sock_client);
-                    }else{
-                        demander_liste_billets(received_msg,sock_client);
-                    }
-                    break;
-                case 4:
-                    printf("User wants to join fil %d\n",ntohs(received_msg->numfil));
-                    add_subscription_to_fil(received_msg,sock_client);
-                    break;
-                    case 5:
-                        if(received_msg->nb!=0){
-                            send_error_message(sock_client);
-                        }
-                        else{
-                            add_file(received_msg,sock_client);
-                        }
-                        break;
-                    default:
-                        perror("switch codereq");
-                        break;
-                }
-            }
+        switch(codereq){
+            case REGISTER:
+                insc = (inscription *) buffer;
+                inscription_client(insc->pseudo,sock_client);
+
+            case POST_MESSAGE:
+                if(received_msg->nb!=0)
+                    send_error_message(sock_client);
+                else
+                    poster_billet(received_msg,sock_client);
+                break;
+            case LIST_MESSAGES:
+                if(received_msg->datalen!=0)
+                    send_error_message(sock_client);
+                else
+                    demander_liste_billets(received_msg,sock_client);
+                break;
+            case SUBSCRIBE:
+                printf("User wants to join fil %d\n",ntohs(received_msg->numfil));
+                add_subscription_to_fil(received_msg,sock_client);
+                break;
+            case UPLOAD_FILE:
+                if(received_msg->nb!=0)
+                    send_error_message(sock_client);
+                else
+                    add_file(received_msg,sock_client);
+                break;
+            default:
+                perror("switch codereq");
+                break;
         }
+    }
 
     ssize_t ret=close(sock_client);
     if(ret<0){

@@ -15,6 +15,16 @@
 #define NOTIFICATION_INTERVAL 5
 #define MULTICAST_PORT 49152
 
+typedef enum {
+    REGISTER = 1,
+    POST_MESSAGE = 2,
+    LIST_MESSAGES = 3,
+    SUBSCRIBE = 4,
+    UPLOAD_FILE = 5,
+    DOWNLOAD_FILE = 6,
+    ERROR = 31
+} request_type;
+
 typedef struct entete{
     uint16_t val;
 } entete;
