@@ -12,6 +12,8 @@
 #include <errno.h>
 
 
+#define SERVER_MESSAGE_SIZE sizeof(uint16_t)*3
+#define NOTIFICATION_SIZE sizeof(uint8_t)*34
 #define NOTIFICATION_INTERVAL 5
 #define MULTICAST_PORT 49152
 
@@ -114,9 +116,7 @@ typedef struct list_client{
 void testMalloc(void *ptr);
 
 void print_8bits(uint8_t n);
-
 void print_bits(uint16_t n);
-
 void print_inscription_bits(inscription *msg);
 
 entete *create_entete(uint8_t codereq,uint16_t id);
@@ -136,6 +136,7 @@ char *message_to_notification(message *msg,uint16_t numfil);
 notification *string_to_notification(const char* buffer);
 
 uint16_t get_id_entete(uint16_t ent);
+request_type get_codereq_entete(uint16_t val);
 
 uint16_t chars_to_uint16(char a,char b);
 

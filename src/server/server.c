@@ -85,11 +85,11 @@ char *pseudo_from_id(int id){
 }
 
 char *message_to_notification(message *msg,uint16_t numfil){
-    size_t buffer_size = sizeof(uint8_t) * 34;
+    size_t buffer_size = NOTIFICATION_SIZE;
     char *buffer = malloc(buffer_size);
     testMalloc(buffer);
 
-    uint16_t entete=create_entete(SUBSCRIBE,0)->val;
+    uint16_t entete = create_entete(SUBSCRIBE,0)->val;
     memcpy(buffer, &(entete), sizeof(uint16_t));
     memcpy(buffer + sizeof(uint16_t), &(numfil), sizeof(uint16_t));
 
@@ -113,7 +113,6 @@ void send_message(request_type codereq, uint16_t id, uint16_t nb, uint16_t numfi
     msg->entete.val = create_entete(codereq,id)->val;
     msg->numfil = htons(numfil);
     msg->nb = htons(nb);
-
 
     char* buffer = server_message_to_string(msg);
     ssize_t nboctet = send(sock_client, buffer, sizeof(server_message), 0);
@@ -372,13 +371,11 @@ void demander_liste_billets(client_message *msg, int sock_client){
         // The server send the buffer if the total bytes exceed BUFSIZ
         // Else we get the offset of the current buffer to send the correct amount of bytes to the client
         offset=send_messages_from_fil(buffer,msg_numfil,offset,msg_nb,sock_client);
-
         if(offset!=0){
             ssize_t nboctet = send(sock_client, buffer,sizeof(char)*(offset), 0);
             if(nboctet <= 0) perror("send n billets to client");
             printf("Octets envoyés au client: %zu\n",nboctet);
         }
-
         free(buffer);
     }
 }
@@ -413,11 +410,9 @@ void send_fil_notification(uint16_t fil_index) {
         char *serialized_msg =message_to_notification(current_message->msg,htons(fil_index));
         size_t serialized_msg_size = sizeof(uint8_t) * 34;
 
-
         if (sendto(sockfd, serialized_msg, serialized_msg_size, 0, (struct sockaddr *)&dest_addr, sizeof(dest_addr)) < 0) {
             perror("sendto");
         }
-
         if(updated_last_multicasted_message == NULL){
             updated_last_multicasted_message = current_message;
         }
@@ -463,8 +458,8 @@ void add_subscription_to_fil(client_message *received_msg, int sock_client){
     }
 
     // Increment the last 32 bits by the numfil
-    uint32_t *derniers_4_octets=(uint32_t *) (&multicast_address.s6_addr32[3]);
-    *derniers_4_octets=htonl(ntohl(*derniers_4_octets)+numfil);
+    uint32_t *derniers_4_octets = (uint32_t *) (&multicast_address.s6_addr32[3]);
+    *derniers_4_octets = htonl(ntohl(*derniers_4_octets)+numfil);
 
     char address_str[INET6_ADDRSTRLEN];
     if(inet_ntop(AF_INET6,&multicast_address,address_str,INET6_ADDRSTRLEN)==NULL){
@@ -715,9 +710,9 @@ void *serve(void *arg){
     else{
         // Vérification de la valeur de l'entête pour différencier les deux cas
         entete *header = (entete *) buffer;
-        request_type codereq = (request_type) ntohs(header->val) & 0x1F;
+        request_type codereq = get_codereq_entete(header->val);
         inscription *insc = NULL;
-        printf("CODEREQ %d\n",codereq); // DEBUG
+        printf("CODEREQ %d\n",codereq);
 
         client_message *received_msg=string_to_client_message(buffer);
 
@@ -779,27 +774,25 @@ int main(){
     }
 
     //*** desactiver l'option n'accepter que de l'IPv6 **
-    int optval=0;
-    int r_opt=setsockopt(sock,IPPROTO_IPV6,IPV6_V6ONLY,&optval,sizeof(optval));
-    if(r_opt<0)
-        perror("erreur connexion IPv4 impossible");
+    int optval = 0;
+    int r_opt = setsockopt(sock,IPPROTO_IPV6,IPV6_V6ONLY,&optval,sizeof(optval));
+    if(r_opt < 0) perror("erreur connexion IPv4 impossible");
 
     //*** le numero de port peut etre utilise en parallele ***
-    optval=1;
-    r_opt=setsockopt(sock,SOL_SOCKET,SO_REUSEADDR,&optval,sizeof(optval));
-    if(r_opt<0)
-        perror("erreur réutilisation de port impossible");
+    optval = 1;
+    r_opt = setsockopt(sock,SOL_SOCKET,SO_REUSEADDR,&optval,sizeof(optval));
+    if(r_opt < 0) perror("erreur réutilisation de port impossible");
 
     //*** on lie la socket au port ***
-    int r=bind(sock,(struct sockaddr *) &address_sock,sizeof(address_sock));
-    if(r<0){
+    int r = bind(sock,(struct sockaddr *) &address_sock,sizeof(address_sock));
+    if(r < 0){
         perror("erreur bind");
         exit(EXIT_FAILURE);
     }
 
     //*** Le serveur est pret a ecouter les connexions sur le port ***
-    r=listen(sock,0);
-    if(r<0){
+    r = listen(sock,0);
+    if(r < 0){
         perror("erreur listen");
         exit(EXIT_FAILURE);
     }
@@ -834,14 +827,14 @@ int main(){
 
     while(running){
         struct sockaddr_in6 addrclient;
-        socklen_t size=sizeof(addrclient);
+        socklen_t size = sizeof(addrclient);
 
         //*** on crée la varaiable sur le tas ***
-        int *sock_client=malloc(sizeof(int));
+        int *sock_client = malloc(sizeof(int));
         testMalloc(sock_client);
 
         //*** le serveur accepte une connexion et initialise la socket de communication avec le client ***
-        *sock_client=accept(sock,(struct sockaddr *) &addrclient,&size);
+        *sock_client = accept(sock,(struct sockaddr *) &addrclient,&size);
 
         if(sock_client>=0){
             pthread_t thread;

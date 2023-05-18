@@ -12,8 +12,8 @@ uint16_t get_id_entete(uint16_t ent){
     return ntohs(ent)>>5;
 }
 
-uint16_t get_codereq_entete(uint16_t ent){
-    return ntohs(ent) & 0x1F;
+request_type get_codereq_entete(uint16_t val){
+    return ntohs(val) & 0x1F;
 }
 
 uint16_t chars_to_uint16(char a,char b){
@@ -24,18 +24,15 @@ void print_8bits(uint8_t n){
     for(int i=7; i>=0; i--){
         uint8_t mask=1<<i;
         uint8_t bit=(n & mask)>>i;
-
         printf("%u",bit);
     }
     printf("\n");
-    // printf(" = %c\n",n);
 }
 
 void print_bits(uint16_t n){
     for(int i=0; i<=15; i++){
         uint16_t mask=1<<i;
         uint16_t bit=(n & mask)>>i;
-
         printf("%u",bit);
     }
     printf("\n");
@@ -44,11 +41,9 @@ void print_bits(uint16_t n){
 entete *create_entete(uint8_t codereq,uint16_t id){
     entete* entete=malloc(sizeof(struct entete));
     testMalloc(entete);
-    entete->val=id;
-    entete->val=entete->val<<5;
-    entete->val=entete->val | codereq;
-    entete->val=htons(entete->val);
-
+    entete->val = id;
+    entete->val = (entete->val<<5) | codereq;
+    entete->val = htons(entete->val);
     return entete;
 }
 
@@ -65,7 +60,6 @@ void print_inscription_bits(inscription *msg){
 
 
 client_message *string_to_client_message(const char *buffer) {
-
     client_message *msg = malloc(sizeof(client_message));
     testMalloc(msg);
 
@@ -103,7 +97,7 @@ server_message *string_to_server_message(const char *buffer) {
 }
 
 char* server_message_to_string(server_message *msg){
-    size_t buffer_size=sizeof(uint16_t)*3;
+    size_t buffer_size = SERVER_MESSAGE_SIZE;
     char *buffer=malloc(buffer_size);
     testMalloc(buffer);
 

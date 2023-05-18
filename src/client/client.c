@@ -41,11 +41,11 @@ void send_message(res_inscription *i,char *data,int nbfil){
 
     //*** reception d'un message ***
 
-    char *buffer = malloc(sizeof(uint16_t)*3);
+    char *buffer = malloc(SERVER_MESSAGE_SIZE);
     testMalloc(buffer);
 
-    memset(buffer,0,sizeof(uint16_t)*3);
-    ssize_t recu = recv(clientfd,buffer,sizeof(uint16_t)*3,0);
+    memset(buffer,0,SERVER_MESSAGE_SIZE);
+    ssize_t recu = recv(clientfd,buffer,SERVER_MESSAGE_SIZE,0);
 
     printf("retour du serveur reçu\n");
     if(recu<0){
@@ -58,7 +58,7 @@ void send_message(res_inscription *i,char *data,int nbfil){
     }
 
     server_message *server_msg = string_to_server_message(buffer);
-    request_type codereq = (request_type) ntohs(server_msg->entete.val) & 0x1F;
+    request_type codereq = get_codereq_entete(server_msg->entete.val);
     if(codereq == NONEXISTENT_FIL){
       printf("Error: the fil you tried to post in doesn't exist.\n");
       return;
@@ -81,8 +81,8 @@ char* pseudo_nohashtags(uint8_t* pseudo){
 
 void print_n_tickets(char *server_msg,uint16_t numfil){
     server_message* received_msg = string_to_server_message(server_msg);
+    request_type codereq =get_codereq_entete(received_msg->entete.val);
 
-    request_type codereq = (request_type) ntohs(received_msg->entete.val) & 0x1F;
     if(codereq == NONEXISTENT_FIL){
       printf("Error: the fil you tried to list doesn't exist.\n");
       return;
@@ -186,12 +186,12 @@ res_inscription* send_inscription(inscription *i){
     print_bits(i->entete.val);
     printf("demande d'inscription envoyée\n");
 
-    char *buffer = malloc(sizeof(uint16_t)*3);
+    char *buffer = malloc(SERVER_MESSAGE_SIZE);
     testMalloc(buffer);
-    memset(buffer,0,sizeof(uint16_t)*3);
+    memset(buffer,0,SERVER_MESSAGE_SIZE);
 
     //*** reception d'un message ***
-    ssize_t recu = recv(clientfd,buffer,sizeof(uint16_t)*3,0);
+    ssize_t recu = recv(clientfd,buffer,SERVER_MESSAGE_SIZE,0);
     printf("retour du serveur reçu\n");
     if(recu<0){
         perror("erreur lecture");
@@ -203,7 +203,7 @@ res_inscription* send_inscription(inscription *i){
     }
     server_message *server_msg = string_to_server_message(buffer);
 
-    request_type codereq = (request_type) ntohs(server_msg->entete.val) & 0x1F;
+    request_type codereq = get_codereq_entete(server_msg->entete.val);
     if(codereq == ERROR){
       printf("Error during registration. Maximum number of clients reached.\n");
       return NULL;
@@ -299,7 +299,7 @@ void subscribe_to_fil(uint16_t fil_number) {
     msg->entete.val=create_entete(SUBSCRIBE,user_id)->val;
     msg->numfil = htons(fil_number);
 
-    ssize_t ecrit=send(clientfd,msg,sizeof(uint16_t)*3+sizeof(uint8_t)*1,0);
+    ssize_t ecrit=send(clientfd,msg,sizeof(uint16_t)*3+sizeof(uint8_t),0);
     if(ecrit<=0){
         perror("Erreur ecriture");
         exit(3);
@@ -321,7 +321,7 @@ void subscribe_to_fil(uint16_t fil_number) {
     }
 
     server_subscription_message *received_msg = string_to_server_subscription_message(server_msg);
-    request_type codereq = (request_type) ntohs(received_msg->entete.val) & 0x1F;
+    request_type codereq = get_codereq_entete(received_msg->entete.val);
     if(codereq == NONEXISTENT_FIL){
       printf("Error: the fil you tried to subscribe to doesn't exist.\n");
       return;
