@@ -130,6 +130,8 @@ server_billet* string_to_server_billet(const char *buffer);
 
 server_message *string_to_server_message(const char *buffer);
 
+char* server_message_to_string(server_message *msg);
+
 server_subscription_message *string_to_server_subscription_message(const char *buffer);
 
 char *message_to_notification(message *msg,uint16_t numfil);

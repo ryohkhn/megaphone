@@ -268,9 +268,8 @@ void *listen_multicast_messages(void *arg) {
 
         // Process the received message
         printf("New post in the fil %d!\n",ntohs(notification->numfil));
-
         char *pseudo=pseudo_nohashtags(notification->pseudo);
-        printf("<%s> ",pseudo);
+        printf("\033[0;31m<%s>\033[0m ",pseudo);
         printf("%s",notification->data);
         if(strlen((char*) notification->data) >= 20) printf("...");
         printf("\n");

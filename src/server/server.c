@@ -112,12 +112,14 @@ void send_message(request_type codereq, uint16_t id, uint16_t nb, uint16_t numfi
     msg->numfil = htons(numfil);
     msg->nb = htons(nb);
 
-    ssize_t nboctet = send(sock_client, msg, sizeof(server_message), 0);
+
+    char* buffer = server_message_to_string(msg);
+    ssize_t nboctet = send(sock_client, buffer, sizeof(server_message), 0);
     if(nboctet <= 0)perror("send");
 }
 
 void send_error_message(int sock_client){
-    send_message(31,0,0,0,sock_client);
+    send_message(ERROR,0,0,0,sock_client);
 }
 
 
@@ -484,15 +486,6 @@ void add_subscription_to_fil(client_message *received_msg, int sock_client){
             return;
         }
 
-        /*
-        // bind the socket
-        int err=bind(multicast_sock,(struct sockaddr *) &server_addr,sizeof(server_addr));
-        if(err==-1){
-            perror("erreur de bind");
-            exit(1);
-        }
-         */
-
         addresse_a_envoyer=malloc(sizeof(uint8_t)*16); // Allocate memory for the address
         memcpy(addresse_a_envoyer,server_addr.sin6_addr.s6_addr,sizeof(uint8_t)*16); // Copy the address bytes
 
@@ -516,9 +509,6 @@ void add_subscription_to_fil(client_message *received_msg, int sock_client){
     msg->addrmult=malloc(sizeof(uint8_t)*16);
     memcpy(msg->addrmult,addresse_a_envoyer,sizeof(uint8_t)*16);
 
-    print_bits(msg->entete.val);
-    print_bits(msg->numfil);
-    print_bits(msg->nb);
     for(int i=0; i<16; i++){
         for(int j=7; j>=0; j--){
             printf("%d",(msg->addrmult[i]>>j) & 1);
@@ -710,7 +700,7 @@ void *serve(void *arg){
             case REGISTER:
                 insc = (inscription *) buffer;
                 inscription_client(insc->pseudo,sock_client);
-
+                break;
             case POST_MESSAGE:
                 if(received_msg->nb!=0)
                     send_error_message(sock_client);
@@ -804,12 +794,12 @@ int main(){
     // Initialise the fils
     fils = malloc(sizeof(fil));
     init_fil_mutex();
+
     // The fil 0 has no originaire
     add_new_fil("");
 
     //Initialise the client list
     clients = malloc(sizeof(list_client));
-
 
     // Start the notification thread
     pthread_t notification_thread;

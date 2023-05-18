@@ -97,6 +97,17 @@ server_message *string_to_server_message(const char *buffer) {
     return msg;
 }
 
+char* server_message_to_string(server_message *msg){
+    size_t buffer_size=sizeof(uint16_t)*3;
+    char *buffer=malloc(buffer_size);
+
+    memcpy(buffer,&(msg->entete.val),sizeof(uint16_t));
+    memcpy(buffer+sizeof(uint16_t),&(msg->numfil),sizeof(uint16_t));
+    memcpy(buffer+sizeof(uint16_t)*2,&(msg->nb),sizeof(uint16_t));
+
+    return buffer;
+}
+
 char *server_subscription_message_to_string(server_subscription_message *msg){
     size_t buffer_size=sizeof(uint8_t)*22;
     char *buffer=malloc(buffer_size);
