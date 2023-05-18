@@ -283,8 +283,8 @@ void demander_liste_billets(client_message *msg, int sock_client){
     uint16_t nb_fil;
     // If the asked fil is 0 the server send messages from all fils
     if(msg_numfil==0){
-        uint16_t total_nb;
-        for(uint16_t i=0; i<fils_size; ++i){
+        uint16_t total_nb=0;
+        for(uint16_t i=1; i<fils_size; ++i){
             nb_fil=fils[i].nb_messages;
             if(msg_nb==0 || msg_nb>nb_fil){
                 total_nb+=nb_fil;
@@ -293,7 +293,6 @@ void demander_liste_billets(client_message *msg, int sock_client){
                 total_nb+=msg_nb;
             }
         }
-
         // Initial server message with codereq 3, same id as client, the total number of messages and the total number of fils
         send_message(3,get_id_entete(msg->entete.val),total_nb,fils_size,sock_client);
 
@@ -451,6 +450,9 @@ void add_subscription_to_fil(client_message *received_msg, int sock_client){
     uint8_t *addresse_a_envoyer;
 
     // Check if fil already has a multicast address
+    if(numfil >= fils_size){
+      printf("%d CODEREQ 30\n", fils_size);
+    }
     if(strlen(fils[numfil].addrmult)>0){
         printf("Multicast for this fil is already initialised.\n");
         addresse_a_envoyer=(uint8_t *) fils[numfil].addrmult;

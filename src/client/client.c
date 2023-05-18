@@ -117,6 +117,7 @@ void print_n_tickets(char *server_msg,uint16_t numfil){
 
         count+=sizeof(uint16_t)+sizeof(uint8_t)*10+sizeof(uint8_t)*10+sizeof(uint8_t)*(received_billet->datalen+1);
     }
+
     printf("\n");
 }
 
@@ -228,7 +229,6 @@ void *listen_multicast_messages(void *arg) {
     struct ipv6_mreq mreq;
     memcpy(&mreq.ipv6mr_multiaddr, multicast_address, sizeof(struct in6_addr));
     mreq.ipv6mr_interface = 0; // Let the system choose the interface
-
 
     if(setsockopt(sockfd,IPPROTO_IPV6,IPV6_ADD_MEMBERSHIP,&mreq,sizeof(mreq))<0){
         perror("setsockopt(IPV6_ADD_MEMBERSHIP)");

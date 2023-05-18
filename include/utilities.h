@@ -54,6 +54,7 @@ typedef struct notification{
     entete entete;
     uint16_t numfil;
     uint8_t *pseudo;
+    uint8_t datalen;
     uint8_t *data;
 } notification;
 
