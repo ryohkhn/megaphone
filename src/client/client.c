@@ -42,12 +42,21 @@ void send_message(res_inscription *i,char *data,int nbfil){
 
     //*** reception d'un message ***
 
-    uint16_t *server_msg=malloc(sizeof(uint8_t)*((datalen)+1));
-    memset(server_msg,0,sizeof(uint8_t)*((datalen)+1));
+    char *buffer = malloc(sizeof(uint8_t)*(datalen+1));
+    memset(buffer,0,sizeof(uint8_t)*(datalen+1));
 
-    ssize_t recu=recv(clientfd,server_msg,sizeof(uint16_t)*(3),0);
+    ssize_t recu = recv(clientfd,buffer,sizeof(uint16_t)*3,0);
     printf("retour du serveur reçu\n");
-    printf("Message écrit sur le fil %d\n",ntohs(*(server_msg+1)));
+
+    server_message *server_msg = string_to_server_message(buffer);
+
+    request_type codereq = (request_type) ntohs(server_msg->entete.val) & 0x1F;
+    if(codereq == NONEXISTENT_FIL){
+      printf("Error: the fil you tried to post in doesn't exist.\n");
+      return;
+    }
+
+    printf("Message écrit sur le fil %d\n", codereq);
     if(recu<0){
         perror("erreur lecture");
         exit(4);
@@ -57,8 +66,8 @@ void send_message(res_inscription *i,char *data,int nbfil){
         exit(0);
     }
     printf("Entete: ");
-    print_bits(ntohs(server_msg[0]));
-    printf("Numfil = %d\n", ntohs(server_msg[1]));
+    print_bits(ntohs(server_msg->entete.val));
+    printf("Numfil = %d\n", ntohs(server_msg->numfil));
 }
 
 char* pseudo_nohashtags(uint8_t* pseudo){
@@ -291,11 +300,10 @@ void subscribe_to_fil(uint16_t fil_number) {
     }
 
     // receive response from server with the multicast address
-    char *server_msg = malloc(sizeof(char) * 22); // 22 octets
+    char *server_msg = malloc(sizeof(char) * 22);
     memset(server_msg,0,sizeof(char) * 22);
 
     ssize_t recu=recv(clientfd,server_msg,sizeof(char) * 22 ,0);
-    printf("retour du serveur reçu\n");
     if(recu<0){
         perror("erreur lecture");
         exit(4);
@@ -304,8 +312,13 @@ void subscribe_to_fil(uint16_t fil_number) {
         printf("serveur off\n");
         exit(0);
     }
-    server_subscription_message *received_msg = string_to_server_subscription_message(server_msg);
 
+    server_subscription_message *received_msg = string_to_server_subscription_message(server_msg);
+    request_type codereq = (request_type) ntohs(received_msg->entete.val) & 0x1F;
+    if(codereq == NONEXISTENT_FIL){
+      printf("Error: the fil you tried to subscribe to doesn't exist.\n");
+      return;
+    }
 
     //  set up a separate thread to listen for messages on the multicast address
     pthread_t notification_thread;
@@ -371,8 +384,8 @@ void add_file(int nbfil) {
 
 
     printf("Envoi du message au serveur\n");
-    ssize_t ecrit = send(clientfd, serialized_msg,
-                         sizeof(uint16_t) * 3 + sizeof(char) * (msg->datalen + 1), 0);
+    ssize_t ecrit = send(clientfd, serialized_msg, sizeof(uint16_t) * 3 + sizeof(char) * (msg->datalen + 1), 0);
+
     if (ecrit <= 0) {
         perror("Erreur ecriture");
         exit(3);

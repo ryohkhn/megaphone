@@ -22,6 +22,7 @@ typedef enum {
     SUBSCRIBE = 4,
     UPLOAD_FILE = 5,
     DOWNLOAD_FILE = 6,
+    NONEXISTENT_FIL = 30,
     ERROR = 31
 } request_type;
 
@@ -121,21 +122,17 @@ void print_inscription_bits(inscription *msg);
 entete *create_entete(uint8_t codereq,uint16_t id);
 
 char* client_message_to_string(client_message *msg);
-
-char* server_subscription_message_to_string(server_subscription_message *msg);
-
 client_message* string_to_client_message(const char *str);
 
 server_billet* string_to_server_billet(const char *buffer);
 
+char* server_message_to_string(server_message *msg);
 server_message *string_to_server_message(const char *buffer);
 
-char* server_message_to_string(server_message *msg);
-
+char* server_subscription_message_to_string(server_subscription_message *msg);
 server_subscription_message *string_to_server_subscription_message(const char *buffer);
 
 char *message_to_notification(message *msg,uint16_t numfil);
-
 notification *string_to_notification(const char* buffer);
 
 uint16_t get_id_entete(uint16_t ent);
@@ -143,8 +140,6 @@ uint16_t get_id_entete(uint16_t ent);
 uint16_t chars_to_uint16(char a,char b);
 
 long size_file(FILE *file);
-
-
 
 
 #define MEGAPHONE_UTILITIES_H

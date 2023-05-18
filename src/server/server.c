@@ -191,7 +191,7 @@ char** retrieve_messages_from_fil(uint16_t fil_number) {
     return messages;
 }
 
-void poster_billet(client_message *msg,int sock_client){
+void post_message(client_message *msg,int sock_client){
     uint16_t id=get_id_entete(msg->entete.val);
 
     printf("Received message from user with id %d, to post to numfil %d\n",id,ntohs(msg->numfil));
@@ -207,7 +207,8 @@ void poster_billet(client_message *msg,int sock_client){
     }
     else if(numfil>=fils_size){
         printf("Demande d'écriture sur un fil inexistant\n");
-        numfil=0;
+        send_message(NONEXISTENT_FIL,0,0,0,sock_client);
+        return;
     }
 
     add_message_to_fil(msg,numfil);
@@ -221,7 +222,7 @@ void poster_billet(client_message *msg,int sock_client){
     }
 
     // Sending response to client
-    send_message(2,id,0,numfil,sock_client);
+    send_message(POST_MESSAGE,id,0,numfil,sock_client);
 }
 
 /**
@@ -457,7 +458,9 @@ void add_subscription_to_fil(client_message *received_msg, int sock_client){
 
     // Check if fil already has a multicast address
     if(numfil >= fils_size){
-      printf("%d CODEREQ 30\n", fils_size);
+      printf("Client tried to subscribe to a nonexistent fil\n");
+      send_message(NONEXISTENT_FIL,0,0,0,sock_client);
+      return;
     }
     if(strlen(fils[numfil].addrmult)>0){
         printf("Multicast for this fil is already initialised.\n");
@@ -705,7 +708,7 @@ void *serve(void *arg){
                 if(received_msg->nb!=0)
                     send_error_message(sock_client);
                 else
-                    poster_billet(received_msg,sock_client);
+                    post_message(received_msg,sock_client);
                 break;
             case LIST_MESSAGES:
                 if(received_msg->datalen!=0)

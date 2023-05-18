@@ -164,11 +164,12 @@ server_billet *string_to_server_billet(const char *buffer) {
 }
 
 char *client_message_to_string(client_message *msg) {
+  /*
     printf("\nUTILITIES---------------------------------\n");
     printf("msg->entete.val = %d\n", msg->entete.val);
     printf("datalen = %d\n",msg->datalen);
     printf("msg->data = %s\n", msg->data);
-
+*/
     size_t buffer_size = sizeof(uint16_t) * 3 + sizeof(char) * (msg->datalen + 1);
     char *buffer = malloc(buffer_size);
 
@@ -177,17 +178,18 @@ char *client_message_to_string(client_message *msg) {
     memcpy(buffer + sizeof(uint16_t) * 2, &(msg->nb), sizeof(uint16_t));
     memcpy(buffer + sizeof(uint16_t) * 3, &(msg->datalen), sizeof(uint8_t));
     memcpy(buffer + sizeof(uint16_t) * 3 + sizeof(uint8_t), msg->data, 1 + msg->datalen);
-
+/*
     printf("entete %d \n",buffer[0]);
     printf("numfil %d \n",buffer[2]);
     printf("nb %d \n",buffer[2]);
     printf("datalen %d \n",buffer[6]);
     printf("data %s \n",buffer + 7);
-
+    
     client_message * test = string_to_client_message(buffer);
     printf("test>entete.val = %d\n", test->entete.val);
     printf("datalen = %d\n",test->datalen);
     printf("test->data = %d%s\n", test->datalen, test->data);
+*/
     return buffer;
 }
 
