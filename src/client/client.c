@@ -32,11 +32,11 @@ void send_message(res_inscription *i,char *data,int nbfil){
 
     // Serialize the client_message structure and send to clientfd
     char *serialized_msg = client_message_to_string(msg);
-    size_t serialized_msg_size = sizeof(uint16_t) * 3 + (datalen + 1) * sizeof(uint8_t);
-    ssize_t ecrit = send(clientfd, serialized_msg, serialized_msg_size, 0);
+    size_t len = sizeof(uint16_t) * 3 + sizeof(char) * (msg->datalen + 1);
+    ssize_t ecrit = send(clientfd, serialized_msg, len, 0);
 
     if(ecrit<=0){
-        perror("erreur ecriture");
+        fprintf(stderr, "Error writing: %s\n", strerror(errno));
         exit(3);
     }
 
@@ -267,12 +267,13 @@ void *listen_multicast_messages(void *arg) {
         notification *notification=string_to_notification(buffer);
 
         // Process the received message
-        printf("Nouveau post sur le fil %d!\n",ntohs(notification->numfil));
+        printf("New post in the fil %d!\n",ntohs(notification->numfil));
 
         char *pseudo=pseudo_nohashtags(notification->pseudo);
         printf("<%s> ",pseudo);
-        printf("%s\n",notification->data);
-
+        printf("%s",notification->data);
+        if(strlen((char*) notification->data) >= 20) printf("...");
+        printf("\n");
     }
     close(sockfd);
     return NULL;
@@ -553,9 +554,12 @@ void run(){
         }
 
         char *reponse=malloc(1024*sizeof(char));
+        size_t len = 0;
+
         char pseudo[10];
         int nbfil=0;
         int n=0;
+        ssize_t read;
 
         if(res_ins==NULL && choice!=1){
             printf("\nYou need to be registered first (Press 1)\n\n");
@@ -579,9 +583,20 @@ void run(){
             case 2:
                 printf("Please enter the thread (0 for a new thread): ");
                 scanf("%d",&nbfil);
+                getchar();  // Consume the newline character
+
                 printf("Message to post: ");
-                scanf("%s",reponse);
-                printf("NBFIL: %d\nInput: %s\n",nbfil,reponse);
+                read = getline(&reponse, &len, stdin);
+
+                if (read != -1) {
+                  // Remove the newline character from the end of the line
+                  reponse[strcspn(reponse, "\n")] = '\0';
+                  printf("NBFIL: %d\nInput: %s\n", nbfil, reponse);
+                }
+                else {
+                  perror("getline() failed\n");
+                  exit(1);
+                }
 
                 send_message(res_ins,reponse,nbfil);
                 break;

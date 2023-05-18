@@ -63,6 +63,7 @@ void print_inscription_bits(inscription *msg){
 
 
 client_message *string_to_client_message(const char *buffer) {
+
     client_message *msg = malloc(sizeof(client_message));
 
     // Copy entete, numfil, and nb from the buffer
@@ -157,7 +158,7 @@ char *client_message_to_string(client_message *msg) {
     printf("datalen = %d\n",msg->datalen);
     printf("msg->data = %s\n", msg->data);
 
-    size_t buffer_size = sizeof(uint16_t) * 3 + sizeof(char) * (msg->data[0] + 1);
+    size_t buffer_size = sizeof(uint16_t) * 3 + sizeof(char) * (msg->datalen + 1);
     char *buffer = malloc(buffer_size);
 
     memcpy(buffer, &(msg->entete.val), sizeof(uint16_t));

@@ -54,7 +54,6 @@ typedef struct notification{
     entete entete;
     uint16_t numfil;
     uint8_t *pseudo;
-    uint8_t datalen;
     uint8_t *data;
 } notification;
 
@@ -132,10 +131,6 @@ uint16_t get_id_entete(uint16_t ent);
 uint16_t chars_to_uint16(char a,char b);
 
 long size_file(FILE *file);
-
-uint16_t get_codereq_entete(uint16_t ent);
-
-void handle_error(int codereq);
 
 
 

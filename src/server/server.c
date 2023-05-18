@@ -587,7 +587,7 @@ void add_file(client_message *received_msg, int sock_client) {
     socklen_t addr_len = sizeof(client_addr);
 
     char recv_buffer[516];
-    int packet_num;
+    //int packet_num;
     size_t bytes_read;
 
     // chemin vers le stockage
@@ -644,7 +644,7 @@ void add_file(client_message *received_msg, int sock_client) {
         fwrite(received_msg_udp->data, 1, sizeof(char) * bytes_read - sizeof(uint16_t) * 2, file);
 
         // todo gérer le cas ou les packets ne sont pas dans l'ordre
-        packet_num = received_msg_udp->numbloc;
+        //packet_num = received_msg_udp->numbloc;
 
         // si dernier paquet udp, on break
         if(bytes_read < sizeof(char) * 512 + sizeof(u_int16_t) * 2) break;
@@ -679,8 +679,9 @@ void add_file(client_message *received_msg, int sock_client) {
 void *serve(void *arg){
     // on cherche codereq pour creer la structure correspondante et appeler la bonne fonction
     int sock_client=*((int *) arg);
-    char buffer[sizeof(client_message)];
+    char buffer[sizeof(client_message) + sizeof(char)*BUFSIZ];
     ssize_t nb_octets=recv(sock_client,buffer,sizeof(buffer),0);
+    printf("RECEIVED %ld octets\n", nb_octets);
 
     if(nb_octets<0){
         perror("recv serve");
