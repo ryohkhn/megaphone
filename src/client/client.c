@@ -42,21 +42,11 @@ void send_message(res_inscription *i,char *data,int nbfil){
 
     //*** reception d'un message ***
 
-    char *buffer = malloc(sizeof(uint8_t)*(datalen+1));
-    memset(buffer,0,sizeof(uint8_t)*(datalen+1));
-
+    char *buffer = malloc(sizeof(uint16_t)*3);
+    memset(buffer,0,sizeof(uint16_t)*3);
     ssize_t recu = recv(clientfd,buffer,sizeof(uint16_t)*3,0);
+
     printf("retour du serveur reçu\n");
-
-    server_message *server_msg = string_to_server_message(buffer);
-
-    request_type codereq = (request_type) ntohs(server_msg->entete.val) & 0x1F;
-    if(codereq == NONEXISTENT_FIL){
-      printf("Error: the fil you tried to post in doesn't exist.\n");
-      return;
-    }
-
-    printf("Message écrit sur le fil %d\n", codereq);
     if(recu<0){
         perror("erreur lecture");
         exit(4);
@@ -65,9 +55,14 @@ void send_message(res_inscription *i,char *data,int nbfil){
         printf("serveur off\n");
         exit(0);
     }
-    printf("Entete: ");
-    print_bits(ntohs(server_msg->entete.val));
-    printf("Numfil = %d\n", ntohs(server_msg->numfil));
+
+    server_message *server_msg = string_to_server_message(buffer);
+    request_type codereq = (request_type) ntohs(server_msg->entete.val) & 0x1F;
+    if(codereq == NONEXISTENT_FIL){
+      printf("Error: the fil you tried to post in doesn't exist.\n");
+      return;
+    }
+    printf("Message écrit sur le fil %d\n", codereq);
 }
 
 char* pseudo_nohashtags(uint8_t* pseudo){
@@ -191,14 +186,14 @@ res_inscription* send_inscription(inscription *i){
         perror("erreur ecriture");
         exit(3);
     }
-    print_bits((i->entete).val);
+    print_bits(i->entete.val);
     printf("demande d'inscription envoyée\n");
 
-    uint16_t server_msg[3];
-    memset(server_msg,0,3*sizeof(uint16_t));
+    char *buffer = malloc(sizeof(uint16_t)*3);
+    memset(buffer,0,sizeof(uint16_t)*3);
 
     //*** reception d'un message ***
-    ssize_t recu=recv(clientfd,server_msg,3*sizeof(uint16_t),0);
+    ssize_t recu = recv(clientfd,buffer,sizeof(uint16_t)*3,0);
     printf("retour du serveur reçu\n");
     if(recu<0){
         perror("erreur lecture");
@@ -208,16 +203,21 @@ res_inscription* send_inscription(inscription *i){
         printf("serveur off\n");
         exit(0);
     }
+    server_message *server_msg = string_to_server_message(buffer);
 
-    for(int j=0; j<3; j++){
-        if(j==0) printf("codereq/id:  ");
-        else if (j==1) printf("numfil:      ");
-        else printf("nb:          ");
-        print_bits(ntohs((uint16_t) server_msg[j]));
+    request_type codereq = (request_type) ntohs(server_msg->entete.val) & 0x1F;
+    if(codereq == ERROR){
+      printf("Error during registration. Maximum number of clients reached.\n");
+      return NULL;
     }
 
+    print_bits(ntohs(server_msg->entete.val));
+    print_bits(ntohs(server_msg->numfil));
+    print_bits(ntohs(server_msg->nb));
+
+
     res_inscription *res=malloc(sizeof(res_inscription));
-    res->id=get_id_entete(server_msg[0]);
+    res->id=get_id_entete(server_msg->entete.val);
 
     return res;
 }
@@ -595,6 +595,7 @@ void run(){
                   break;
                 }
                 res_ins = inscription_client(pseudo);
+                if(res_ins == NULL) exit(4);
                 user_id = res_ins->id;
                 printf("id: %d\n",res_ins->id);
                 break;

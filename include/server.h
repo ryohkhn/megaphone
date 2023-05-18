@@ -7,7 +7,7 @@
 #include <string.h>
 #include <stdlib.h>
 
-// Maximum size of numfil possible (2^16 - 1)
+// Maximum number of fils possible (2^16 - 1)
 #define MAX_FIL 65536
 pthread_mutex_t fil_mutex[MAX_FIL];
 void init_fil_mutex() {
@@ -16,6 +16,8 @@ void init_fil_mutex() {
     }
 }
 
+// Maximum number of clients possible (2^11 - 1)
+#define MAX_ID 2047
 uint16_t id_dernier_client = 0;
 pthread_mutex_t client_mutex = PTHREAD_MUTEX_INITIALIZER;
 list_client * clients;

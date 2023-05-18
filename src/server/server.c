@@ -124,7 +124,14 @@ void send_error_message(int sock_client){
 
 
 void inscription_client(char * pseudo, int sock_client){
-  pthread_mutex_lock(&client_mutex);
+    // Check if maximum number of clients has been reached
+    if(id_dernier_client >= MAX_ID){
+      printf("Maximum number of clients reached.\n");
+      send_error_message(sock_client);
+      return;
+    }
+
+    pthread_mutex_lock(&client_mutex);
     list_client * current_client = clients;
     id_dernier_client += 1;
     if(current_client == NULL){
