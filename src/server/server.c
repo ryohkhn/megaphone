@@ -206,7 +206,7 @@ void post_message(client_message *msg,int sock_client){
         printf("Numfil trouvé vide: %d\n",numfil);
     }
     else if(numfil>=fils_size){
-        printf("Demande d'écriture sur un fil inexistant\n");
+        printf("Client tried to write to a nonexistent fil\n");
         send_message(NONEXISTENT_FIL,0,0,0,sock_client);
         return;
     }
@@ -333,9 +333,9 @@ void demander_liste_billets(client_message *msg, int sock_client){
         free(buffer);
     }
     else{
-        // If the asked fil does not exist the server send a 31 code
+        // If the asked fil does not exist the server sends a NONEXISTENT_FIL error
         if(msg_numfil>=fils_size){
-            send_error_message(sock_client);
+            send_message(NONEXISTENT_FIL,0,0,0,sock_client);
             return;
         }
         nb_fil=fils[msg_numfil].nb_messages;

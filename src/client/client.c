@@ -84,8 +84,14 @@ char* pseudo_nohashtags(uint8_t* pseudo){
 }
 
 void print_n_tickets(char *server_msg,uint16_t numfil){
-    // TODO Vérifier erreur CODEREQ 31
     server_message* received_msg = string_to_server_message(server_msg);
+
+    request_type codereq = (request_type) ntohs(received_msg->entete.val) & 0x1F;
+    if(codereq == NONEXISTENT_FIL){
+      printf("Error: the fil you tried to list doesn't exist.\n");
+      return;
+    }
+
 
     printf("ID local: %d\n",user_id);
     printf("ID reçu: %d\n",get_id_entete(received_msg->entete.val));
