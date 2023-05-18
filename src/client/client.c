@@ -75,15 +75,8 @@ char* pseudo_nohashtags(uint8_t* pseudo){
 }
 
 void print_n_tickets(char *server_msg,uint16_t numfil){
+    // TODO Vérifier erreur CODEREQ 31
     server_message* received_msg = string_to_server_message(server_msg);
-
-    uint16_t codereq =get_codereq_entete(received_msg->entete.val);
-    printf("Codereq reçu: %d\n",codereq);
-
-    if(codereq==31){
-        handle_error(codereq);
-        return;
-    }
 
     printf("ID local: %d\n",user_id);
     printf("ID reçu: %d\n",get_id_entete(received_msg->entete.val));
@@ -128,11 +121,12 @@ void request_n_tickets(res_inscription *i,uint16_t numfil,uint16_t n){
     msg->numfil=htons(numfil);
     msg->nb=htons(n);
     msg->datalen=0;
+    msg->data=malloc(sizeof(uint8_t)*2);
 
     printf("\nEntête envoyée au serveur:\n");
     print_bits(ntohs(msg->entete.val));
 
-    ssize_t ecrit=send(clientfd,msg,sizeof(msg->entete)+sizeof(uint16_t)*2+sizeof(uint8_t),0);
+    ssize_t ecrit=send(clientfd,msg,sizeof(msg->entete)+sizeof(uint16_t)*2+sizeof(uint8_t)*2,0);
     if(ecrit<=0){
         perror("Erreur ecriture");
         exit(3);
@@ -256,9 +250,6 @@ void *listen_multicast_messages(void *arg) {
         return NULL;
     }
 
-
-
-
     // Receive and process messages
     while(1){
         char buffer[262];
@@ -283,7 +274,6 @@ void *listen_multicast_messages(void *arg) {
         printf("%s\n",notification->data);
 
     }
-
     close(sockfd);
     return NULL;
 }

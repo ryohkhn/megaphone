@@ -284,7 +284,7 @@ void demander_liste_billets(client_message *msg, int sock_client){
     // If the asked fil is 0 the server send messages from all fils
     if(msg_numfil==0){
         uint16_t total_nb=0;
-        for(uint16_t i=1; i<fils_size; ++i){
+        for(uint16_t i=0; i<fils_size; ++i){
             nb_fil=fils[i].nb_messages;
             if(msg_nb==0 || msg_nb>nb_fil){
                 total_nb+=nb_fil;
