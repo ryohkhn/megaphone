@@ -63,11 +63,11 @@ void send_message(res_inscription *i,char *data,int nbfil){
     msg->data = malloc(sizeof(uint8_t)*((datalen)+1));
     testMalloc(data);
     msg->datalen = datalen;
-    memcpy(msg->data,data,sizeof(char)*(datalen));
+    memcpy(msg->data,data,sizeof(uint8_t)*(datalen));
 
     // Serialize the client_message structure and send to clientfd
     char *serialized_msg = client_message_to_string(msg);
-    size_t len = sizeof(uint16_t) * 3 + sizeof(char) * (msg->datalen + 1);
+    size_t len = CLIENT_MESSAGE_SIZE + sizeof(char) * (msg->datalen + 1);
     ssize_t ecrit = send(clientfd, serialized_msg, len, 0);
 
     if(ecrit<=0){
@@ -79,16 +79,17 @@ void send_message(res_inscription *i,char *data,int nbfil){
 
     char *buffer = malloc(SERVER_MESSAGE_SIZE);
     testMalloc(buffer);
-
     memset(buffer,0,SERVER_MESSAGE_SIZE);
-    ssize_t recu = recv(clientfd,buffer,SERVER_MESSAGE_SIZE,0);
+
+    ssize_t read = recv_bytes(clientfd,buffer,SERVER_MESSAGE_SIZE);
+    // ssize_t recu = recv(clientfd,buffer,SERVER_MESSAGE_SIZE,0);
 
     printf("retour du serveur reçu\n");
-    if(recu<0){
+    if(read < 0){
         perror("erreur lecture");
         exit(4);
     }
-    if(recu==0){
+    if(read == 0){
         printf("serveur off\n");
         exit(0);
     }
@@ -116,22 +117,22 @@ char* pseudo_nohashtags(uint8_t* pseudo){
 }
 
 void print_n_tickets(char *server_msg,uint16_t numfil){
-    server_message* received_msg = string_to_server_message(server_msg);
-    request_type codereq =get_codereq_entete(received_msg->entete.val);
+    server_message *received_msg = string_to_server_message(server_msg);
+    request_type codereq = get_codereq_entete(received_msg->entete.val);
 
     if(codereq == NONEXISTENT_FIL){
-      printf("Error: the fil you tried to list doesn't exist.\n");
-      return;
+        printf("Error: the fil you tried to list doesn't exist.\n");
+        return;
     }
 
     printf("ID local: %d\n",user_id);
     printf("ID reçu: %d\n",get_id_entete(received_msg->entete.val));
 
-    uint16_t nb_fil_serv=ntohs(received_msg->numfil);
-    uint16_t nb_serv=ntohs(received_msg->nb);
-    size_t offset=sizeof(uint16_t)*3;
+    uint16_t nb_fil_serv = ntohs(received_msg->numfil);
+    uint16_t nb_serv = ntohs(received_msg->nb);
+    size_t offset = SERVER_MESSAGE_SIZE;
 
-    if(numfil==0){
+    if(numfil == 0){
         printf("Nombre de fils à afficher: %d\n",nb_fil_serv);
         printf("Total de messages à afficher: %d\n",nb_serv);
     }
@@ -141,35 +142,32 @@ void print_n_tickets(char *server_msg,uint16_t numfil){
     }
 
     for(int i=0; i<nb_serv; i++){
-        server_billet * received_billet=string_to_server_billet(server_msg+offset);
-        uint16_t fil=ntohs(received_billet->numfil);
+        server_billet *received_billet = string_to_server_billet(server_msg+offset);
+        uint16_t fil = ntohs(received_billet->numfil);
         printf("\nFil %d\n",fil);
 
         char* pseudo=pseudo_nohashtags(received_billet->pseudo);
         printf("\n\033[0;31m<%s>\033[0m ",pseudo);
         printf("%s\n",received_billet->data);
 
-        offset+=NUMFIL_SIZE+ORIGINE_SIZE+PSEUDO_SIZE+(DATALEN_SIZE*(received_billet->datalen+1));
+        offset+=NUMFIL_SIZE+ORIGINE_SIZE+PSEUDO_SIZE+(sizeof(uint8_t)*(received_billet->datalen+1));
     }
-
     printf("\n");
 }
 
 void request_n_tickets(res_inscription *i,uint16_t numfil,uint16_t n){
-    client_message *msg=malloc(sizeof(client_message));
+    client_message *msg = malloc(sizeof(client_message));
     testMalloc(msg);
 
-    msg->entete.val=create_entete(LIST_MESSAGES,i->id)->val;
-    msg->numfil=htons(numfil);
-    msg->nb=htons(n);
-    msg->datalen=0;
-    msg->data=malloc(sizeof(uint8_t)*2);
-    testMalloc(msg->data);
+    msg->entete.val = create_entete(LIST_MESSAGES,i->id)->val;
+    msg->numfil = htons(numfil);
+    msg->nb = htons(n);
+    msg->datalen = 0;
 
     printf("\nEntête envoyée au serveur:\n");
     print_bits(ntohs(msg->entete.val));
 
-    ssize_t ecrit=send(clientfd,msg,sizeof(msg->entete)+sizeof(uint16_t)*2+sizeof(uint8_t)*2,0);
+    ssize_t ecrit = send(clientfd,msg,CLIENT_MESSAGE_SIZE+DATALEN_SIZE,0);
     if(ecrit<=0){
         perror("Erreur ecriture");
         exit(3);
@@ -177,38 +175,21 @@ void request_n_tickets(res_inscription *i,uint16_t numfil,uint16_t n){
     printf("Message envoyé au serveur.\n");
 
     ssize_t buffer_size = BUFSIZ;
-    char *buffer = malloc(sizeof(char)*buffer_size);
+    char *buffer = malloc(sizeof(char)*BUFSIZ);
     testMalloc(buffer);
 
-    ssize_t bytes_received;
-    size_t total_bytes_received = 0;
-
-    while ((bytes_received = recv(clientfd, buffer + total_bytes_received, BUFSIZ, 0)) > 0) {
-        printf("Octets reçus du serveur: %zu\n",bytes_received);
-        total_bytes_received += bytes_received;
-
-        // Check if the remaining buffer space is less than BUFSIZ
-        if (buffer_size - total_bytes_received < BUFSIZ) {
-            // Increase the buffer size by BUFSIZ
-            buffer_size += BUFSIZ;
-
-            // Reallocate the buffer to the new size
-            char *new_buffer = realloc(buffer, buffer_size);
-            testMalloc(new_buffer);
-            buffer = new_buffer;
-        }
-    }
-
-    if (bytes_received < 0) {
-        perror("recv n tickets");
+    ssize_t ret = recv_unlimited_bytes(clientfd,buffer,buffer_size);
+    if(ret < 0){
         free(buffer);
-        return;
+        perror("Receive unlimited bytes when requesting n tickets");
+        exit(1);
     }
+
     print_n_tickets(buffer,numfil);
 }
 
 res_inscription* send_inscription(inscription *i){
-    ssize_t ecrit=send(clientfd,i,12,0);
+    ssize_t ecrit = send(clientfd,i,REGISTER_SIZE,0);
     if(ecrit<=0){
         perror("erreur ecriture");
         exit(3);
@@ -221,28 +202,28 @@ res_inscription* send_inscription(inscription *i){
     memset(buffer,0,SERVER_MESSAGE_SIZE);
 
     //*** reception d'un message ***
-    ssize_t recu = recv(clientfd,buffer,SERVER_MESSAGE_SIZE,0);
+    // ssize_t recu = recv(clientfd,buffer,SERVER_MESSAGE_SIZE,0);
+    ssize_t read = recv_bytes(clientfd,buffer,SERVER_MESSAGE_SIZE);
     printf("retour du serveur reçu\n");
-    if(recu<0){
-        perror("erreur lecture");
+    if(read<0){
+        perror("Recv error in the send inscription function");
         exit(4);
     }
-    if(recu==0){
-        printf("serveur off\n");
+    if(read==0){
+        printf("Server off");
         exit(0);
     }
     server_message *server_msg = string_to_server_message(buffer);
 
     request_type codereq = get_codereq_entete(server_msg->entete.val);
     if(codereq == ERROR){
-      printf("Error during registration. Maximum number of clients reached.\n");
-      return NULL;
+        printf("Error during registration. Maximum number of clients reached.\n");
+        return NULL;
     }
 
-    print_bits(ntohs(server_msg->entete.val));
-    print_bits(ntohs(server_msg->numfil));
-    print_bits(ntohs(server_msg->nb));
-
+    // print_bits(ntohs(server_msg->entete.val));
+    // print_bits(ntohs(server_msg->numfil));
+    // print_bits(ntohs(server_msg->nb));
 
     res_inscription *res = malloc(sizeof(res_inscription));
     testMalloc(res);
@@ -301,7 +282,7 @@ void *listen_multicast_messages(void *arg) {
         struct sockaddr_in6 src_addr;
         socklen_t addrlen=sizeof(src_addr);
 
-        ssize_t nbytes=recvfrom(sockfd,buffer,sizeof(buffer),0,
+        ssize_t nbytes = recvfrom(sockfd,buffer,sizeof(buffer),0,
                                 (struct sockaddr *) &src_addr,&addrlen);
         if(nbytes<0){
             perror("recvfrom");
@@ -309,11 +290,11 @@ void *listen_multicast_messages(void *arg) {
         }
 
         // deserializer le message recu
-        notification *notification=string_to_notification(buffer);
+        notification *notification = string_to_notification(buffer);
 
         // Process the received message
         printf("\n\nNew post in the fil %d!\n",ntohs(notification->numfil));
-        char *pseudo=pseudo_nohashtags(notification->pseudo);
+        char *pseudo = pseudo_nohashtags(notification->pseudo);
         printf("\033[0;31m<%s>\033[0m ",pseudo);
         printf("%s",notification->data);
         if(strlen((char*) notification->data) >= 20) printf("...");
@@ -329,26 +310,27 @@ void *listen_multicast_messages(void *arg) {
 void subscribe_to_fil(uint16_t fil_number) {
     client_message *msg = malloc(sizeof(client_message));
     testMalloc(msg);
-    msg->entete.val=create_entete(SUBSCRIBE,user_id)->val;
+    msg->entete.val = create_entete(SUBSCRIBE,user_id)->val;
     msg->numfil = htons(fil_number);
 
-    ssize_t ecrit=send(clientfd,msg,sizeof(uint16_t)*3+sizeof(uint8_t),0);
+    ssize_t ecrit = send(clientfd,msg,CLIENT_MESSAGE_SIZE+DATALEN_SIZE,0);
     if(ecrit<=0){
         perror("Erreur ecriture");
         exit(3);
     }
 
     // receive response from server with the multicast address
-    char *server_msg = malloc(sizeof(char) * 22);
+    char *server_msg = malloc(SERVER_SUBSCRIPTION_SIZE);
     testMalloc(server_msg);
-    memset(server_msg,0,sizeof(char) * 22);
+    memset(server_msg,0,SERVER_SUBSCRIPTION_SIZE);
 
-    ssize_t recu=recv(clientfd,server_msg,sizeof(char) * 22 ,0);
-    if(recu<0){
+    // ssize_t recu = recv(clientfd,server_msg,sizeof(char) * 22 ,0);
+    ssize_t read = recv_bytes(clientfd,server_msg,SERVER_SUBSCRIPTION_SIZE);
+    if(read < 0){
         perror("erreur lecture");
         exit(4);
     }
-    if(recu==0){
+    if(read == 0){
         printf("serveur off\n");
         exit(0);
     }
@@ -356,8 +338,8 @@ void subscribe_to_fil(uint16_t fil_number) {
     server_subscription_message *received_msg = string_to_server_subscription_message(server_msg);
     request_type codereq = get_codereq_entete(received_msg->entete.val);
     if(codereq == NONEXISTENT_FIL){
-      printf("Error: the fil you tried to subscribe to doesn't exist.\n");
-      return;
+        printf("Error: the fil you tried to subscribe to doesn't exist.\n");
+        return;
     }
 
     //  set up a separate thread to listen for messages on the multicast address
@@ -380,7 +362,7 @@ void download_file(int nbfil){
     // on crée le message du client au serveur
     client_message *msg = malloc(sizeof(client_message));
     int port = allocate_port();
-    msg->entete.val = create_entete(6, user_id)->val;
+    msg->entete.val = create_entete(DOWNLOAD_FILE, user_id)->val;
     msg->nb = htons(port);
     msg->numfil = htons(nbfil);
 
@@ -633,21 +615,21 @@ void add_file(int nbfil) {
 void client(){
     int fdsock=socket(PF_INET,SOCK_STREAM,0);
     if(fdsock==-1){
-        perror("creation socket");
+        perror("Socket creation");
         exit(1);
     }
 
     //*** creation de l'adresse du destinataire (serveur) ***
     struct sockaddr_in address_sock;
     memset(&address_sock,0,sizeof(address_sock));
-    address_sock.sin_family=AF_INET;
-    address_sock.sin_port=htons(7777);
+    address_sock.sin_family = AF_INET;
+    address_sock.sin_port = htons(7777);
     inet_pton(AF_INET,"localhost",&address_sock.sin_addr);
 
     //*** demande de connexion au serveur ***
-    int r=connect(fdsock,(struct sockaddr *) &address_sock,sizeof(address_sock));
+    int r = connect(fdsock,(struct sockaddr *) &address_sock,sizeof(address_sock));
     if(r==-1){
-        perror("echec de la connexion");
+        perror("Connection to server failed");
         exit(2);
     }
 
@@ -689,7 +671,7 @@ res_inscription *inscription_client(char pseudo[10]){
 
 void run(){
     int choice;
-    res_inscription *res_ins=NULL;
+    res_inscription *res_ins = NULL;
     initialize_ports();
 
     while(1){
@@ -705,7 +687,7 @@ void run(){
             if(choice>=1 && choice<=6) break;
         }
 
-        char *response=malloc(1024*sizeof(char));
+        char *response = malloc(1024*sizeof(char));
         testMalloc(response);
         size_t len = 0;
 

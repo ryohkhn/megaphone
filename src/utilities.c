@@ -441,3 +441,47 @@ void boucle_envoie_udp(FILE * file, int port, client_message *msg) {
     free(msg_udp);
     close(sock_udp);
 }
+
+ssize_t recv_bytes(int sockfd, char *buf, ssize_t len){
+    ssize_t bytes_left = len;
+    size_t offset = 0;
+
+    while(bytes_left > 0){
+        ssize_t read = recv(sockfd, buf + offset, bytes_left, 0);
+        if(read < 0){
+            return read;
+        }
+
+        bytes_left -= read;
+        offset += read;
+    }
+
+    return len;
+}
+
+ssize_t recv_unlimited_bytes(int sockfd, char* buf, ssize_t buffer_size){
+    ssize_t bytes_received;
+    ssize_t total_bytes_received = 0;
+
+    while ((bytes_received = recv(sockfd, buf + total_bytes_received, BUFSIZ, 0)) > 0) {
+        printf("Octets reçus du serveur: %zu\n",bytes_received);
+        total_bytes_received += bytes_received;
+
+        // Check if the remaining buffer space is less than BUFSIZ
+        if (buffer_size - total_bytes_received < BUFSIZ) {
+            // Increase the buffer size by BUFSIZ
+            buffer_size += BUFSIZ;
+
+            // Reallocate the buffer to the new size
+            char *new_buffer = realloc(buf, buffer_size);
+            testMalloc(new_buffer);
+            buf = new_buffer;
+        }
+    }
+
+    if (bytes_received < 0) {
+        return bytes_received;
+    }
+
+    return total_bytes_received;
+}

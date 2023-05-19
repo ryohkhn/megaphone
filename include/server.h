@@ -9,28 +9,18 @@
 
 // Maximum number of fils possible (2^16 - 1)
 #define MAX_FIL 65536
-pthread_mutex_t fil_mutex[MAX_FIL];
 #define PORT 7777
-#define SIZE_BUF 256
 #define directory_for_files "fichiers_fil"
 
 // Maximum number of clients possible (2^11 - 1)
 #define MAX_ID 2047
 uint16_t id_dernier_client = 0;
-pthread_mutex_t client_mutex = PTHREAD_MUTEX_INITIALIZER;
 list_client * clients;
 
 // Liste des listes chainees pour les messages postes dans un fil
 fil *fils;
 uint16_t fils_size = 0;
 uint16_t fils_capacity = 1;
-
-void init_fil_mutex() {
-    for (int i = 0; i < MAX_FIL; i++) {
-        pthread_mutex_init(&fil_mutex[i], NULL);
-    }
-}
-
 
 int running = 1;
 void signal_handler(int signal, siginfo_t *siginfo, void *context) {
@@ -40,8 +30,23 @@ void signal_handler(int signal, siginfo_t *siginfo, void *context) {
 // Liste des ports disponibles
 int * available_ports;
 
+// Mutexs for each thread
+pthread_mutex_t fil_mutex[MAX_FIL];
+
 // Mutex pour la gestion des ports
 pthread_mutex_t port_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+// Mutex pour la gestion de la liste de clients
+pthread_mutex_t client_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+// Mutex pour la taille de la liste de threads
+pthread_mutex_t thread_size_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+void init_fil_mutex() {
+    for (int i = 0; i < MAX_FIL; i++) {
+        pthread_mutex_init(&fil_mutex[i], NULL);
+    }
+}
 
 #define MEGAPHONE_SERVER_H
 

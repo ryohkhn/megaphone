@@ -16,6 +16,9 @@
 #define PORT_RANGE (MAX_PORT - MIN_PORT + 1)
 
 #define SERVER_MESSAGE_SIZE (sizeof(uint16_t)*3)
+#define CLIENT_MESSAGE_SIZE (sizeof(uint16_t)*3)
+#define REGISTER_SIZE (sizeof(uint8_t)*12)
+#define SERVER_SUBSCRIPTION_SIZE (sizeof(uint16_t)*11)
 #define NOTIFICATION_SIZE (sizeof(uint8_t)*34)
 #define NUMFIL_SIZE (sizeof(uint16_t))
 #define ORIGINE_SIZE (sizeof(uint8_t)*10)
@@ -154,6 +157,8 @@ long size_file(FILE *file);
 void boucle_ecoute_udp(char * file_directory, int sock, int fil, char * filename);
 void boucle_envoie_udp(FILE * file, int port, client_message *msg);
 
+ssize_t recv_bytes(int sockfd, char *buf, ssize_t len);
+ssize_t recv_unlimited_bytes(int sockfd, char* buf, ssize_t buffer_size);
 
 #define MEGAPHONE_UTILITIES_H
 

@@ -43,15 +43,14 @@ void add_new_fil(char* originaire) {
     }
 
     (*(fils+fils_size)).fil_number=fils_size;
-    //(*(fils+fils_size)).head=malloc(sizeof(message_node));
-    (*(fils+fils_size)).last_multicasted_message=malloc(sizeof(message_node));
+    (*(fils+fils_size)).last_multicasted_message = malloc(sizeof(message_node));
     testMalloc((*(fils+fils_size)).last_multicasted_message);
-    (*(fils+fils_size)).subscribed=0;
-    (*(fils+fils_size)).originaire=malloc(sizeof(uint8_t)*10);
+    (*(fils+fils_size)).subscribed = 0;
+    (*(fils+fils_size)).originaire = malloc(sizeof(uint8_t)*10);
     testMalloc((*(fils+fils_size)).originaire);
     memcpy((*(fils+fils_size)).originaire,originaire,sizeof(uint8_t)*10);
-    (*(fils+fils_size)).nb_messages=0;
-    (*(fils+fils_size)).addrmult=malloc(sizeof(char)*16);
+    (*(fils+fils_size)).nb_messages = 0;
+    (*(fils+fils_size)).addrmult = malloc(sizeof(char)*16);
     testMalloc((*(fils+fils_size)).addrmult);
     fils_size++;
 }
@@ -62,7 +61,8 @@ char *pseudo_from_id(int id){
     if(current_client==NULL){
         printf("Pas de clients!\n");
         return pseudo;
-    }else{
+    }
+    else{
         while(current_client->suivant!=NULL){
             if(current_client->id==id) break;
             current_client=current_client->suivant;
@@ -103,20 +103,19 @@ void send_message(request_type codereq, uint16_t id, uint16_t nb, uint16_t numfi
 
     char* buffer = server_message_to_string(msg);
     ssize_t nboctet = send(sock_client, buffer, sizeof(server_message), 0);
-    if(nboctet <= 0)perror("send");
+    if(nboctet <= 0) perror("send");
 }
 
 void send_error_message(int sock_client){
     send_message(ERROR,0,0,0,sock_client);
 }
 
-
 void inscription_client(char * pseudo, int sock_client){
     // Check if maximum number of clients has been reached
     if(id_dernier_client >= MAX_ID){
-      printf("Maximum number of clients reached.\n");
-      send_error_message(sock_client);
-      return;
+        printf("Maximum number of clients reached.\n");
+        send_error_message(sock_client);
+        return;
     }
 
     pthread_mutex_lock(&client_mutex);
@@ -176,8 +175,8 @@ void add_message_to_fil(client_message *msg, uint16_t fil_number) {
     pthread_mutex_unlock(&fil_mutex[fil_number]);
 }
 
-char** retrieve_messages_from_fil(uint16_t fil_number) {
-    fil* current_fil = &fils[fil_number];
+char **retrieve_messages_from_fil(uint16_t fil_number) {
+    fil *current_fil = &fils[fil_number];
 
     message_node *current = current_fil->head;
     char **messages = malloc(sizeof(char *) * 1024);
@@ -193,7 +192,7 @@ char** retrieve_messages_from_fil(uint16_t fil_number) {
 }
 
 void post_message(client_message *msg,int sock_client){
-    uint16_t id=get_id_entete(msg->entete.val);
+    uint16_t id = get_id_entete(msg->entete.val);
 
     printf("Received message from user with id %d, to post to numfil %d\n",id,ntohs(msg->numfil));
     printf("The message is: %s\n",(char *) (msg->data));
@@ -713,9 +712,6 @@ void add_file(client_message *received_msg, int sock_client) {
     current_fil->head = new_node;
 
 }
-
-
-
 
 
 void *serve(void *arg){
