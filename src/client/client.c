@@ -1,5 +1,9 @@
 #include "../../include/client.h"
 
+void print_prompt(){
+    printf("> ");
+}
+
 // Fonction pour initialiser la liste des ports disponibles
 void initialize_ports() {
     available_ports = malloc(sizeof(int) * PORT_RANGE);
@@ -196,7 +200,7 @@ void request_n_tickets(res_inscription *i,uint16_t numfil,uint16_t n){
     }
 
     if (bytes_received < 0) {
-        perror("recv");
+        perror("recv n tickets");
         free(buffer);
         return;
     }
@@ -307,12 +311,14 @@ void *listen_multicast_messages(void *arg) {
         notification *notification=string_to_notification(buffer);
 
         // Process the received message
-        printf("New post in the fil %d!\n",ntohs(notification->numfil));
+        printf("\n\nNew post in the fil %d!\n",ntohs(notification->numfil));
         char *pseudo=pseudo_nohashtags(notification->pseudo);
         printf("\033[0;31m<%s>\033[0m ",pseudo);
         printf("%s",notification->data);
         if(strlen((char*) notification->data) >= 20) printf("...");
-        printf("\n");
+        printf("\n\n");
+        print_prompt();
+        fflush(stdout);
     }
     close(sockfd);
     return NULL;
@@ -620,10 +626,6 @@ void add_file(int nbfil) {
     free(msg_udp);
     close(sock_udp);*/
     fclose(file);
-}
-
-void print_prompt(){
-    printf("> ");
 }
 
 
