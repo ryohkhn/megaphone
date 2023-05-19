@@ -143,29 +143,33 @@ server_subscription_message *string_to_server_subscription_message(const char *b
 server_billet *string_to_server_billet(const char *buffer) {
     server_billet *billet= malloc(sizeof(server_billet));
     testMalloc(billet);
+    size_t offset=0;
 
     // Copy entete, numfil, and nb from the buffer
-    memcpy(&(billet->numfil), buffer, sizeof(uint16_t));
+    memcpy(&(billet->numfil), buffer, NUMFIL_SIZE);
+    offset += NUMFIL_SIZE;
 
-    billet->origine = malloc(sizeof(uint8_t)*10);
+    billet->origine = malloc(ORIGINE_SIZE);
     testMalloc(billet->origine);
-    memcpy(billet->origine, buffer+sizeof(uint16_t), sizeof(uint8_t)*10);
+    memcpy(billet->origine, buffer+offset, ORIGINE_SIZE);
+    offset += ORIGINE_SIZE;
 
-    billet->pseudo = malloc(sizeof(uint8_t)*10);
+    billet->pseudo = malloc(PSEUDO_SIZE);
     testMalloc(billet->pseudo);
-    memcpy(billet->pseudo, buffer+sizeof(uint16_t)*6, sizeof(uint8_t)*10);
+    memcpy(billet->pseudo, buffer+offset, PSEUDO_SIZE);
+    offset += PSEUDO_SIZE;
 
     // Extract datalen from the buffer, located right after nb
-    uint8_t datalen = buffer[sizeof(uint16_t) * 11];
+    uint8_t datalen = buffer[offset];
     billet->datalen = datalen;
 
     // Allocate memory for data, including space for the null-terminator
-    billet->data = malloc(sizeof(uint8_t)*(datalen + 1));
+    billet->data = malloc(DATALEN_SIZE*(datalen + 1));
     testMalloc(billet->data);
+    offset += DATALEN_SIZE;
 
     // Copy the data from the buffer, starting after datalen
-    memcpy(billet->data, buffer + sizeof(uint8_t) * 23, sizeof(uint8_t)*(datalen + 1));
-
+    memcpy(billet->data, buffer + offset, DATALEN_SIZE*(datalen + 1));
 
     return billet;
 }

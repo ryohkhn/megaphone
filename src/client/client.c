@@ -92,10 +92,10 @@ void send_message(res_inscription *i,char *data,int nbfil){
     server_message *server_msg = string_to_server_message(buffer);
     request_type codereq = get_codereq_entete(server_msg->entete.val);
     if(codereq == NONEXISTENT_FIL){
-      printf("Error: the fil you tried to post in doesn't exist.\n");
-      return;
+        printf("Error: the fil you tried to post in doesn't exist.\n");
+        return;
     }
-    printf("Message écrit sur le fil %d\n", codereq);
+    printf("Message écrit sur le fil %d\n", ntohs(server_msg->numfil));
 }
 
 char* pseudo_nohashtags(uint8_t* pseudo){
@@ -120,13 +120,12 @@ void print_n_tickets(char *server_msg,uint16_t numfil){
       return;
     }
 
-
     printf("ID local: %d\n",user_id);
     printf("ID reçu: %d\n",get_id_entete(received_msg->entete.val));
 
     uint16_t nb_fil_serv=ntohs(received_msg->numfil);
     uint16_t nb_serv=ntohs(received_msg->nb);
-    size_t count=sizeof(uint16_t)*3;
+    size_t offset=sizeof(uint16_t)*3;
 
     if(numfil==0){
         printf("Nombre de fils à afficher: %d\n",nb_fil_serv);
@@ -138,20 +137,15 @@ void print_n_tickets(char *server_msg,uint16_t numfil){
     }
 
     for(int i=0; i<nb_serv; i++){
-        server_billet * received_billet=string_to_server_billet(server_msg+count);
-
+        server_billet * received_billet=string_to_server_billet(server_msg+offset);
         uint16_t fil=ntohs(received_billet->numfil);
         printf("\nFil %d\n",fil);
-        // We don't show the name of the maker of the thread 0 since the server is creating it
-        if(fil!=0){
-            char* originaire=pseudo_nohashtags(received_billet->origine);
-            printf("Originaire du fil: %s\n",originaire);
-        }
+
         char* pseudo=pseudo_nohashtags(received_billet->pseudo);
         printf("\n\033[0;31m<%s>\033[0m ",pseudo);
         printf("%s\n",received_billet->data);
 
-        count+=sizeof(uint16_t)+sizeof(uint8_t)*10+sizeof(uint8_t)*10+sizeof(uint8_t)*(received_billet->datalen+1);
+        offset+=NUMFIL_SIZE+ORIGINE_SIZE+PSEUDO_SIZE+(DATALEN_SIZE*(received_billet->datalen+1));
     }
 
     printf("\n");
@@ -628,6 +622,10 @@ void add_file(int nbfil) {
     fclose(file);
 }
 
+void print_prompt(){
+    printf("> ");
+}
+
 
 void client(){
     int fdsock=socket(PF_INET,SOCK_STREAM,0);
@@ -696,6 +694,7 @@ void run(){
 
         while(1){
             printf("Entrez un chiffre entre 1 et 6:\n");
+            print_prompt();
             if(scanf("%d",&choice)!=1){
                 while(getchar()!='\n');
                 continue;
@@ -721,11 +720,12 @@ void run(){
 
         switch(choice){
             case 1:
-                printf("Please enter your username: ");
+                printf("Please enter your username:\n");
+                print_prompt();
                 scanf("%s",pseudo);
                 if(strlen(pseudo)>10){
-                  printf("Error: The username must be 10 characters or less.\n");
-                  break;
+                    printf("Error: The username must be 10 characters or less.\n");
+                    break;
                 }
                 res_ins = inscription_client(pseudo);
                 if(res_ins == NULL) exit(4);
@@ -733,47 +733,54 @@ void run(){
                 printf("id: %d\n",res_ins->id);
                 break;
             case 2:
-                printf("Please enter the thread (0 for a new thread): ");
+                printf("Please enter the thread (0 for a new thread):\n");
+                print_prompt();
                 scanf("%d",&nbfil);
                 getchar();  // Consume the newline character
 
-                printf("Message to post: ");
+                printf("Message to post:\n");
+                print_prompt();
                 read = getline(&response, &len, stdin);
 
                 if (read != -1) {
-                  // Remove the newline character from the end of the line
-                  response[strcspn(response, "\n")] = '\0';
-                  printf("NBFIL: %d\nInput: %s\n", nbfil, response);
+                    // Remove the newline character from the end of the line
+                    response[strcspn(response, "\n")] = '\0';
+                    printf("NBFIL: %d\nInput: %s\n", nbfil, response);
                 }
                 else {
-                  perror("getline() failed\n");
-                  exit(1);
+                    perror("getline() failed\n");
+                    exit(1);
                 }
 
                 send_message(res_ins,response,nbfil);
                 break;
             case 3:
-                printf("Please enter the thread: ");
+                printf("Please enter the thread:\n");
+                print_prompt();
                 scanf("%d",&nbfil);
-                printf("Please enter the number of posts: ");
+                printf("Please enter the number of posts:\n");
+                print_prompt();
                 scanf("%d",&n);
 
                 request_n_tickets(res_ins,nbfil,n);
                 break;
             case 4:
-                printf("Please enter the thread: ");
+                printf("Please enter the thread:\n");
+                print_prompt();
                 scanf("%d",&nbfil);
 
                 subscribe_to_fil(nbfil);
                 break;
             case 5:
-                printf("Please enter the thread: ");
+                printf("Please enter the thread:\n");
+                print_prompt();
                 scanf("%d",&nbfil);
 
                 add_file(nbfil);
                 break;
             case 6:
-                printf("Please enter the thread: ");
+                printf("Please enter the thread:\n");
+                print_prompt();
                 scanf("%d",&nbfil);
 
                 download_file(nbfil);

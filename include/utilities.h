@@ -15,8 +15,13 @@
 #define MAX_PORT 65535
 #define PORT_RANGE (MAX_PORT - MIN_PORT + 1)
 
-#define SERVER_MESSAGE_SIZE sizeof(uint16_t)*3
-#define NOTIFICATION_SIZE sizeof(uint8_t)*34
+#define SERVER_MESSAGE_SIZE (sizeof(uint16_t)*3)
+#define NOTIFICATION_SIZE (sizeof(uint8_t)*34)
+#define NUMFIL_SIZE (sizeof(uint16_t))
+#define ORIGINE_SIZE (sizeof(uint8_t)*10)
+#define PSEUDO_SIZE (sizeof(uint8_t)*10)
+#define DATALEN_SIZE (sizeof(uint8_t))
+
 #define NOTIFICATION_INTERVAL 5
 #define MULTICAST_PORT 49152
 

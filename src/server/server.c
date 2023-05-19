@@ -153,7 +153,7 @@ void inscription_client(char * pseudo, int sock_client){
     pthread_mutex_unlock(&client_mutex);
 
     // on envoie le message de l'inscription
-    send_message(1, current_client->id, 0, 0, sock_client);
+    send_message(REGISTER, current_client->id, 0, 0, sock_client);
 }
 
 void add_message_to_fil(client_message *msg, uint16_t fil_number) {
@@ -286,7 +286,7 @@ size_t send_messages_from_fil(char *buffer,uint16_t numfil,size_t offset,uint16_
  * @param msg the message received from the client
  * @param sock_client the socket of the current client
  */
-void demander_liste_billets(client_message *msg, int sock_client){
+void request_threads_list(client_message *msg, int sock_client){
     uint16_t msg_numfil=ntohs(msg->numfil);
     uint16_t msg_nb=ntohs(msg->nb);
     uint16_t nb_fil;
@@ -541,7 +541,7 @@ void download_file(client_message * received_msg, int sockclient) {
     printf("received_msg->data = %s\n", received_msg->data);
     // réponse du serveur avec CODEREQ, ID et NUMFIL et NB ayant chacun la même valeur que dans
     // la requête du client pour signifier qu’il accepte la requête et va procéder au transfert.
-    send_message(6,get_id_entete(received_msg->entete.val), received_msg->nb, received_msg->numfil, sockclient);
+    send_message(DOWNLOAD_FILE,get_id_entete(received_msg->entete.val), received_msg->nb, received_msg->numfil, sockclient);
 
 
     printf("\n\n on ouvre le fichier demandé\n");
@@ -687,7 +687,7 @@ void add_file(client_message *received_msg, int sock_client) {
 
     printf("Envoi du message avec le port au client\n");
     // envoie message avec le port au client
-    send_message(5, ntohs(received_msg->entete.val) >> 5, port, received_msg->numfil, sock_client);
+    send_message(UPLOAD_FILE, ntohs(received_msg->entete.val) >> 5, port, received_msg->numfil, sock_client);
 
     // on reçoit et on écrit le fichier
     boucle_ecoute_udp(directory_for_files, sock_serv, received_msg->numfil, (char *)received_msg->data);
@@ -759,7 +759,7 @@ void *serve(void *arg){
                 if(received_msg->datalen!=0)
                     send_error_message(sock_client);
                 else
-                    demander_liste_billets(received_msg,sock_client);
+                    request_threads_list(received_msg,sock_client);
                 break;
             case SUBSCRIBE:
                 printf("User wants to join fil %d\n",ntohs(received_msg->numfil));
