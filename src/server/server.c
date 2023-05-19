@@ -562,7 +562,7 @@ void download_file(client_message * received_msg, int sockclient) {
     printf("\n\nappel boucle envoie udp \n\n");
     // appelle a la boucle qui envoie le message en UDP
     // arguments -> le FILE, le port, le message du client initial (pour l'entete UNIQUEMENT)
-    boucle_envoie_udp(file,received_msg->nb, received_msg);
+    boucle_envoie_udp(file,ntohs(received_msg->nb), received_msg);
 
     fclose(file);
     printf("\n\nfin download_files\n");
@@ -652,48 +652,21 @@ void add_file(client_message *received_msg, int sock_client) {
         received_msg->numfil = 0;
     }
 
-    printf("Création du socket UDP\n");
-    // création socket UDP
-    int sock_serv = socket(PF_INET, SOCK_DGRAM, 0);
-    if (sock_serv < 0) {
-        perror("socket UDP");
-    }
 
-    printf("Configuration du délai d'attente\n");
-    // on définit le délai d'attente de recvfrom à 30 secondes
-    struct timeval timeout;
-    timeout.tv_sec = 30;
-    timeout.tv_usec = 0;
-
-    printf("setsockopt\n");
-    if (setsockopt(sock_serv, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0) {
-        perror("Erreur lors de la définition du délai d'attente");
-        return;
-    }
     printf("allocate port\n");
     int port = allocate_port();
 
-    printf("Configuration de l'adresse du serveur\n");
-    struct sockaddr_in servadr;
-    memset(&servadr, 0, sizeof(servadr));
-    servadr.sin_family = AF_INET;
-    servadr.sin_addr.s_addr = htonl(INADDR_ANY);
-    servadr.sin_port = htons(port);
-    printf("port = %d\n", port);
-    if (bind(sock_serv, (struct sockaddr *)&servadr, sizeof(servadr)) < 0) {
-        perror("bind UDP:");
-    }
+
 
     printf("Envoi du message avec le port au client\n");
     // envoie message avec le port au client
     send_message(UPLOAD_FILE, ntohs(received_msg->entete.val) >> 5, port, received_msg->numfil, sock_client);
 
     // on reçoit et on écrit le fichier
-    boucle_ecoute_udp(directory_for_files, sock_serv, received_msg->numfil, (char *)received_msg->data);
+    boucle_ecoute_udp(directory_for_files, port, received_msg->numfil, (char *)received_msg->data);
 
     printf("fin while, release_port, fclose, close\n");
 
-    close(sock_serv);
     release_port(port);
 
     // on ajoute le fichier au fil

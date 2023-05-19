@@ -154,7 +154,7 @@ uint16_t chars_to_uint16(char a,char b);
 
 long size_file(FILE *file);
 
-void boucle_ecoute_udp(char * file_directory, int sock, int fil, char * filename);
+void boucle_ecoute_udp(char * file_directory, int port, int fil, char * filename);
 void boucle_envoie_udp(FILE * file, int port, client_message *msg);
 
 ssize_t recv_bytes(int sockfd, char *buf, ssize_t len);

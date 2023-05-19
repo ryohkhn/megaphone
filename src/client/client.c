@@ -367,6 +367,7 @@ void download_file(int nbfil){
     msg->numfil = htons(nbfil);
 
     // on récupère le nom du fichier
+    // todo afficher la liste des fichiers disponibles sur le thread nbfil
     printf("Please enter the name of the file: ");
     char *filename = malloc(sizeof(char) * 512);
     scanf("%s", filename);
@@ -374,40 +375,13 @@ void download_file(int nbfil){
     // on finit de remplir le message du client au serveur
     uint8_t datalen = strlen(filename);
     msg->datalen = datalen;
-    msg->data = malloc(sizeof(char) * (datalen + 1));
+    msg->data = malloc(sizeof(char) * (datalen));
     memcpy(msg->data, filename, sizeof(char) * (datalen));
     printf("\n\nmsg->entete.val = %d\n", msg->entete.val);
     printf("msg->datalen = %d\n", datalen);
     printf("msg->data = %s\n", msg->data);
 
-    // création socket UDP IPV4
-    printf("\n\nCréation du socket UDP\n");
-    int sock_udp = socket(PF_INET, SOCK_DGRAM, 0);
-    if (sock_udp < 0) {
-        perror("socket UDP");
-    }
 
-    // on définit le délai d'attente de recvfrom à 30 secondes
-    printf("Configuration du délai d'attente\n");
-    struct timeval timeout;
-    timeout.tv_sec = 30;
-    timeout.tv_usec = 0;
-
-    if (setsockopt(sock_udp, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0) {
-        perror("Erreur lors de la définition du délai d'attente");
-        return;
-    }
-
-    // configuration de l'adresse du client
-    printf("Configuration de l'adresse du client\n");
-    struct sockaddr_in clientadr;
-    memset(&clientadr, 0, sizeof(clientadr));
-    clientadr.sin_family = AF_INET;
-    clientadr.sin_addr.s_addr = htonl(INADDR_ANY);
-    clientadr.sin_port = htons(port);
-    if (bind(sock_udp, (struct sockaddr *)&clientadr, sizeof(clientadr)) < 0) {
-        perror("bind UDP");
-    }
 
     // on envoie le message au serveur
     char *serialized_msg = client_message_to_string(msg);
@@ -445,10 +419,7 @@ void download_file(int nbfil){
     printf("\n\nappel boucle ecoute udp \n\n");
     // appelle a la boucle qui écoute le message en UDP
     // arguments -> dossier ou download, la socket udp, le port, le nom du fichier a download
-    boucle_ecoute_udp("downloaded_files", sock_udp, nbfil, filename);
-
-
-    close(sock_udp);
+    boucle_ecoute_udp("downloaded_files", port, nbfil, filename);
     release_port(port);
 }
 
@@ -495,10 +466,6 @@ void add_file(int nbfil) {
     printf("msg->entete.val = %d\n", msg->entete.val);
     printf("datalen = %d\n", ntohs(datalen));
     printf("msg->data = %d%s\n", msg->datalen, msg->data + 1);
-    //msg->data + 1 = "test";
-    //printf("msg->data = %d%s\n", msg->data[0], msg->data + 1);
-
-
 
     char *serialized_msg = client_message_to_string(msg);
     printf("serialization validée \n");
