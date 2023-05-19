@@ -11,6 +11,9 @@
 #include <sys/time.h>
 #include <errno.h>
 
+#define MIN_PORT 49153
+#define MAX_PORT 65535
+#define PORT_RANGE (MAX_PORT - MIN_PORT + 1)
 
 #define SERVER_MESSAGE_SIZE sizeof(uint16_t)*3
 #define NOTIFICATION_SIZE sizeof(uint8_t)*34
@@ -49,11 +52,12 @@ typedef struct client_message{
     uint8_t *data;
 } client_message;
 
-typedef struct client_message_udp{
+typedef struct message_udp{
     entete entete;
     uint16_t numbloc;
     char * data;
-} client_message_udp;
+} message_udp;
+
 
 typedef struct server_billet{
     uint16_t numfil;
@@ -141,6 +145,9 @@ request_type get_codereq_entete(uint16_t val);
 uint16_t chars_to_uint16(char a,char b);
 
 long size_file(FILE *file);
+
+void boucle_ecoute_udp(char * file_directory, int sock, int fil, char * filename);
+void boucle_envoie_udp(FILE * file, int port, client_message *msg);
 
 
 #define MEGAPHONE_UTILITIES_H
