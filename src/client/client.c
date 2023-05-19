@@ -254,7 +254,8 @@ res_inscription* send_inscription(inscription *i){
 
 void *listen_multicast_messages(void *arg) {
     // Extract the multicast address from the argument
-    uint8_t *multicast_address = (uint8_t *)arg;
+    server_subscription_message *received_msg = (server_subscription_message *)arg;
+    uint8_t *multicast_address = received_msg->addrmult;
 
     // Create a socket for listening to multicast messages
     int sockfd = socket(AF_INET6, SOCK_DGRAM, 0);
@@ -284,9 +285,9 @@ void *listen_multicast_messages(void *arg) {
     // Bind the socket to the multicast port
     struct sockaddr_in6 local_addr;
     memset(&local_addr,0,sizeof(local_addr));
-    local_addr.sin6_family=AF_INET6;
-    local_addr.sin6_addr=in6addr_any;
-    local_addr.sin6_port=htons(MULTICAST_PORT);
+    local_addr.sin6_family = AF_INET6;
+    local_addr.sin6_addr = in6addr_any;
+    local_addr.sin6_port = received_msg->nb;
 
     if(bind(sockfd,(struct sockaddr *) &local_addr,sizeof(local_addr))<0){
         perror("bind");
@@ -362,7 +363,7 @@ void subscribe_to_fil(uint16_t fil_number) {
     //  set up a separate thread to listen for messages on the multicast address
     pthread_t notification_thread;
     int rc = pthread_create(&notification_thread, NULL, listen_multicast_messages,
-                            (void *)received_msg->addrmult);
+                            (void *)received_msg);
     if (rc != 0) {
         perror("pthread_create");
         exit(1);
