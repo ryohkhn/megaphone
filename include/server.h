@@ -31,7 +31,7 @@ void signal_handler(int signal, siginfo_t *siginfo, void *context) {
 int * available_ports;
 
 // Mutexs for each thread
-pthread_mutex_t fil_mutex[MAX_FIL];
+pthread_mutex_t fil_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 // Mutex pour la gestion des ports
 pthread_mutex_t port_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -41,12 +41,6 @@ pthread_mutex_t client_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 // Mutex pour la taille de la liste de threads
 pthread_mutex_t thread_size_mutex = PTHREAD_MUTEX_INITIALIZER;
-
-void init_fil_mutex() {
-    for (int i = 0; i < MAX_FIL; i++) {
-        pthread_mutex_init(&fil_mutex[i], NULL);
-    }
-}
 
 #define MEGAPHONE_SERVER_H
 

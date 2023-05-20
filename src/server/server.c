@@ -35,6 +35,7 @@ void release_port(int port) {
 }
 
 void add_new_fil(char* originaire) {
+    pthread_mutex_lock(&fil_mutex);
     // If the list is full, reallocate memory to double the capacity
     if (fils_size == fils_capacity) {
         fils_capacity *= 2;
@@ -53,6 +54,7 @@ void add_new_fil(char* originaire) {
     (*(fils+fils_size)).addrmult = malloc(sizeof(char)*16);
     testMalloc((*(fils+fils_size)).addrmult);
     fils_size++;
+    pthread_mutex_unlock(&fil_mutex);
 }
 
 char *pseudo_from_id(int id){
@@ -156,7 +158,7 @@ void inscription_client(char * pseudo, int sock_client){
 }
 
 void add_message_to_fil(client_message *msg, uint16_t fil_number) {
-    pthread_mutex_lock(&fil_mutex[fil_number]);
+    pthread_mutex_lock(&fil_mutex);
     fil* current_fil = &fils[fil_number];
     current_fil->nb_messages++;
 
@@ -172,10 +174,11 @@ void add_message_to_fil(client_message *msg, uint16_t fil_number) {
 
     new_node->next = current_fil->head;
     current_fil->head = new_node;
-    pthread_mutex_unlock(&fil_mutex[fil_number]);
+    pthread_mutex_unlock(&fil_mutex);
 }
 
 char **retrieve_messages_from_fil(uint16_t fil_number) {
+    pthread_mutex_lock(&fil_mutex);
     fil *current_fil = &fils[fil_number];
 
     message_node *current = current_fil->head;
@@ -187,6 +190,7 @@ char **retrieve_messages_from_fil(uint16_t fil_number) {
         index++;
         current = current->next;
     }
+    pthread_mutex_unlock(&fil_mutex);
     messages[index] = NULL; // Add NULL at the end of the messages array
     return messages;
 }
@@ -291,6 +295,7 @@ void request_threads_list(client_message *msg, int sock_client){
     uint16_t nb_fil;
     // If the asked fil is 0 the server send messages from all fils
     if(msg_numfil==0){
+        pthread_mutex_lock(&fil_mutex);
         uint16_t total_nb=0;
         for(uint16_t i=0; i<fils_size; ++i){
             nb_fil=fils[i].nb_messages;
@@ -324,6 +329,7 @@ void request_threads_list(client_message *msg, int sock_client){
             // Else we get the offset of the current buffer to append more data
             offset=send_messages_from_fil(buffer,i,offset,cpy_msg_nb,sock_client);
         }
+        pthread_mutex_unlock(&fil_mutex);
 
         // If the last buffer is not yet sent, the server send it to the client
         if(offset!=0){
@@ -336,6 +342,7 @@ void request_threads_list(client_message *msg, int sock_client){
     }
     else{
         // If the asked fil does not exist the server sends a NONEXISTENT_FIL error
+        pthread_mutex_lock(&fil_mutex);
         if(msg_numfil>=fils_size){
             send_message(NONEXISTENT_FIL,0,0,0,sock_client);
             return;
@@ -357,6 +364,7 @@ void request_threads_list(client_message *msg, int sock_client){
         // The server send the buffer if the total bytes exceed BUFSIZ
         // Else we get the offset of the current buffer to send the correct amount of bytes to the client
         offset=send_messages_from_fil(buffer,msg_numfil,offset,msg_nb,sock_client);
+        pthread_mutex_unlock(&fil_mutex);
         if(offset!=0){
             ssize_t nboctet = send(sock_client, buffer,sizeof(char)*(offset), 0);
             if(nboctet <= 0) perror("send n billets to client");
@@ -416,6 +424,7 @@ void send_fil_notification(uint16_t fil_index) {
 // on lance la fonction send_fil_notification
 void *send_notifications(void *arg){
     while(1){
+        pthread_mutex_lock(&fil_mutex);
         for(int i=0; i<fils_size; i++){
             if( fils[i].head!=NULL && fils[i].head->msg!=NULL && fils[i].head != fils[i].last_multicasted_message
             && fils[i].subscribed>0){
@@ -424,6 +433,7 @@ void *send_notifications(void *arg){
                 send_fil_notification(i);
             }
         }
+        pthread_mutex_unlock(&fil_mutex);
         sleep(NOTIFICATION_INTERVAL);
     }
     return NULL;
@@ -455,6 +465,7 @@ void add_subscription_to_fil(client_message *received_msg, int sock_client){
 
     uint8_t *addresse_a_envoyer;
 
+    pthread_mutex_lock(&fil_mutex);
     // Check if fil already has a multicast address
     if(numfil >= fils_size){
       printf("Client tried to subscribe to a nonexistent fil\n");
@@ -504,6 +515,7 @@ void add_subscription_to_fil(client_message *received_msg, int sock_client){
 
     // update fil subscription counter
     fils[numfil].subscribed+=1;
+    pthread_mutex_unlock(&fil_mutex);
 
     //sending response to client
     server_subscription_message *msg=malloc(sizeof(server_subscription_message));
@@ -642,6 +654,7 @@ void download_file(client_message * received_msg, int sockclient) {
 }
 
 void add_file(client_message *received_msg, int sock_client) {
+    pthread_mutex_lock(&fil_mutex);
     // on fait les vérifications de pour ajouter un billet à un fil
     if (received_msg->numfil == 0) {
         add_new_fil(pseudo_from_id(get_id_entete(received_msg->entete.val)));
@@ -651,6 +664,7 @@ void add_file(client_message *received_msg, int sock_client) {
         printf("Demande d'écriture sur un fil inexistant\n");
         received_msg->numfil = 0;
     }
+    pthread_mutex_unlock(&fil_mutex);
 
 
     printf("allocate port\n");
@@ -669,6 +683,7 @@ void add_file(client_message *received_msg, int sock_client) {
 
     release_port(port);
 
+    pthread_mutex_lock(&fil_mutex);
     // on ajoute le fichier au fil
     printf("on ajoute le fichier au fil\n");
     fil* current_fil = &fils[received_msg->numfil];
@@ -683,7 +698,7 @@ void add_file(client_message *received_msg, int sock_client) {
 
     new_node->next = current_fil->head;
     current_fil->head = new_node;
-
+    pthread_mutex_unlock(&fil_mutex);
 }
 
 
@@ -812,7 +827,6 @@ int main(){
     // Initialise the fils
     fils = malloc(sizeof(fil));
     testMalloc(fils);
-    init_fil_mutex();
 
     // The fil 0 has no originaire
     add_new_fil("");
