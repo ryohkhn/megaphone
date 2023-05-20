@@ -6,6 +6,7 @@
 #include <signal.h>
 #include <string.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 // Maximum number of fils possible (2^16 - 1)
 #define MAX_FIL 65536
@@ -41,6 +42,7 @@ pthread_mutex_t client_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 // Mutex pour la taille de la liste de threads
 pthread_mutex_t thread_size_mutex = PTHREAD_MUTEX_INITIALIZER;
+
 
 #define MEGAPHONE_SERVER_H
 

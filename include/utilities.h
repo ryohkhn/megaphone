@@ -11,6 +11,7 @@
 #include <sys/time.h>
 #include <errno.h>
 
+
 #define MIN_PORT 49153
 #define MAX_PORT 65535
 #define PORT_RANGE (MAX_PORT - MIN_PORT + 1)
@@ -27,6 +28,9 @@
 
 #define NOTIFICATION_INTERVAL 5
 #define MULTICAST_PORT 49152
+
+//Mutex pour l'envoie d'un fichier (éviter de lire le meme fichier en même temps)
+pthread_mutex_t file_reader_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 typedef enum {
     REGISTER = 1,
@@ -104,6 +108,7 @@ typedef struct message{
 // List of messages
 typedef struct message_node{
     message *msg;
+    int isFile;
     struct message_node *next;
 } message_node;
 
@@ -154,11 +159,13 @@ uint16_t chars_to_uint16(char a,char b);
 
 long size_file(FILE *file);
 
-void boucle_ecoute_udp(char * file_directory, int port, int fil, char * filename);
-void boucle_envoie_udp(FILE * file, int port, client_message *msg);
+void receive_file_udp(char * file_directory, int port, int fil, char * filename);
+void send_file_udp(FILE * file, int port, client_message *msg);
 
 ssize_t recv_bytes(int sockfd, char *buf, ssize_t len);
 ssize_t recv_unlimited_bytes(int sockfd, char* buf, ssize_t buffer_size);
+
+int is_valid_filename(const char *filename);
 
 #define MEGAPHONE_UTILITIES_H
 

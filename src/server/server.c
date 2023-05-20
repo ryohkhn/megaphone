@@ -3,6 +3,7 @@
 // Fonction pour initialiser la liste des ports disponibles
 void initialize_ports() {
     available_ports = malloc(sizeof(int) * PORT_RANGE);
+    testMalloc(available_ports);
     for (uint16_t i = 0; i < PORT_RANGE; i++) {
         available_ports[i] = MIN_PORT + i;
     }
@@ -164,7 +165,9 @@ void add_message_to_fil(client_message *msg, uint16_t fil_number) {
 
     message_node *new_node = malloc(sizeof(message_node));
     testMalloc(new_node);
+    new_node->isFile = 0;
     new_node->msg = malloc(sizeof(message));
+    testMalloc(new_node->msg);
     new_node->msg->datalen = msg->datalen;
     new_node->msg->id = get_id_entete(msg->entete.val);
 
@@ -557,113 +560,50 @@ void download_file(client_message * received_msg, int sockclient) {
 
     printf("\n\n on ouvre le fichier demandé\n");
     //on ouvre le fichier demandé (stocké dans fichiers_fil)
-    // todo ajouter vérification que le fichier existe
     char file_path[512];
     snprintf(file_path, sizeof(file_path), "%s/%d_%s", directory_for_files, ntohs(received_msg->numfil), received_msg->data);
     printf("file_path = %s\n", file_path);
+    if(access(file_path, F_OK) != 0) {   // F_OK vérifie l'existence du fichier
+        printf("Le fichier n'existe pas.\n");
+        return;
+    }
     FILE * file = fopen(file_path, "r");
     if (file == NULL) {
         perror("Erreur d'ouverture du fichier");
         return;
     }
 
-    printf("\nsleep 2s\n");
-    // pour eviter qu'on envoie les données avant que le client ne soit pret a les recevoir.
-    sleep(2);
-
     printf("\n\nappel boucle envoie udp \n\n");
     // appelle a la boucle qui envoie le message en UDP
     // arguments -> le FILE, le port, le message du client initial (pour l'entete UNIQUEMENT)
-    boucle_envoie_udp(file,ntohs(received_msg->nb), received_msg);
+    send_file_udp(file,ntohs(received_msg->nb), received_msg);
 
+    // nettoyage et free
     fclose(file);
     printf("\n\nfin download_files\n");
-
-
-/*
-    printf("Création et configuration du socket UDP\n");
-    // Création du socket
-    int sock_udp = socket(AF_INET, SOCK_DGRAM, 0);
-    if (sock_udp < 0) {
-        perror("Erreur de création du socket");
-        return;
-    }
-
-    // Configuration de l'adresse du client cible
-    struct sockaddr_in client_addr;
-    memset(&client_addr, 0, sizeof(client_addr));
-    client_addr.sin_family = AF_INET;
-    client_addr.sin_port = htons(received_msg->nb);
-    if (inet_pton(AF_INET, "127.0.0.1", &client_addr.sin_addr.s_addr) <= 0) {
-        perror("Erreur lors de la conversion de l'adresse IP");
-        close(sock_udp);
-        return;
-    }
-    socklen_t len_client_addr = sizeof(client_addr);
-
-
-// lecture et retranscription du fichier dans le buffer
-    printf("lecture et retranscription du fichier dans le buffer\n");
-    char buffer[512];
-    int packet_num = 0;
-    size_t bytes_read;
-    message_udp * msg_udp = malloc(sizeof(message_udp));
-    while ((bytes_read = fread(buffer, 1, 512, file)) > 0) {
-        printf("bytes read = %zu\n", bytes_read);
-        printf("Préparation du message UDP\n");
-        msg_udp->entete = received_msg->entete;
-        msg_udp->numbloc = packet_num;
-        msg_udp->data = malloc(sizeof(char) * bytes_read);
-        memcpy(msg_udp->data, buffer, sizeof(char) * bytes_read);
-        printf("msg_udp->entete = %d\n",msg_udp->entete.val);
-        printf("msg_udp->numbloc = %d\n",msg_udp->numbloc);
-        printf("msg_udp->data = %s\n",msg_udp->data);
-
-
-        // on serialize
-        ssize_t serialize_buf_size = sizeof(char) * bytes_read + sizeof(uint16_t) * 2;
-        char *serialize_buffer = malloc(serialize_buf_size);
-
-        memcpy(serialize_buffer, &(msg_udp->entete.val), sizeof(uint16_t));
-        memcpy(serialize_buffer + sizeof(uint16_t), &(msg_udp->numbloc), sizeof(uint16_t));
-        memcpy(serialize_buffer + sizeof(uint16_t) * 2, msg_udp->data, bytes_read);
-
-        printf("serializedbuffer = %s\nserialize_buf_size = %zd\n", serialize_buffer, serialize_buf_size);
-        printf("Envoi du message UDP\n");
-        ssize_t bytes_sent = sendto(sock_udp, serialize_buffer, serialize_buf_size, 0, (struct sockaddr *)&client_addr, len_client_addr);
-        printf("bytes sent = %zd\n", bytes_sent);
-
-        packet_num += 1;
-        free(serialize_buffer);
-
-        if (bytes_sent < 0) {
-            free(msg_udp);
-            perror("Erreur lors de l'envoi des données");
-            fclose(file);
-            return;
-        }
-    }
-
-    printf("Nettoyage et fermeture du fichier\n");
-    free(msg_udp);
-    close(sock_udp);
-    fclose(file);
-    */
-
-
 }
 
 void add_file(client_message *received_msg, int sock_client) {
+    printf("\n\ndébut add_file\n\n");
     pthread_mutex_lock(&fil_mutex);
+    printf("test1\n");
     // on fait les vérifications de pour ajouter un billet à un fil
     if (received_msg->numfil == 0) {
+        printf("test2\n");
+
         add_new_fil(pseudo_from_id(get_id_entete(received_msg->entete.val)));
+        printf("test3\n");
+
         received_msg->numfil = fils_size - 1;
+
         printf("Numfil trouvé vide, création d'un nouveau fil : %d\n", received_msg->numfil);
     } else if (received_msg->numfil >= fils_size) {
+        // todo gérer le cas ou le fil n'existe pas
         printf("Demande d'écriture sur un fil inexistant\n");
         received_msg->numfil = 0;
     }
+    printf("test4\n");
+
     pthread_mutex_unlock(&fil_mutex);
 
 
@@ -677,7 +617,7 @@ void add_file(client_message *received_msg, int sock_client) {
     send_message(UPLOAD_FILE, ntohs(received_msg->entete.val) >> 5, port, received_msg->numfil, sock_client);
 
     // on reçoit et on écrit le fichier
-    boucle_ecoute_udp(directory_for_files, port, received_msg->numfil, (char *)received_msg->data);
+    receive_file_udp(directory_for_files, port, received_msg->numfil, (char *)received_msg->data);
 
     printf("fin while, release_port, fclose, close\n");
 
@@ -689,12 +629,18 @@ void add_file(client_message *received_msg, int sock_client) {
     fil* current_fil = &fils[received_msg->numfil];
 
     message_node *new_node = malloc(sizeof(message_node));
+    testMalloc(new_node);
+    new_node->isFile = 1;
     new_node->msg=malloc(sizeof(message));
-    new_node->msg->datalen = received_msg->data[0];
+    testMalloc(new_node->msg);
+
+    new_node->msg->datalen = received_msg->datalen;
     new_node->msg->id=get_id_entete(received_msg->entete.val);
 
     new_node->msg->data=malloc(sizeof(uint8_t) * new_node->msg->datalen);
-    memcpy(new_node->msg->data,received_msg->data + 1,new_node->msg->datalen);
+    testMalloc(new_node->msg->data);
+
+    memcpy(new_node->msg->data,received_msg->data,new_node->msg->datalen);
 
     new_node->next = current_fil->head;
     current_fil->head = new_node;
@@ -849,7 +795,7 @@ int main(){
         int *sock_client = malloc(sizeof(int));
         testMalloc(sock_client);
 
-        //*** le serveur accepte une connexion et initialise la socket de communication avec le client ***
+        //*** le serveur accepte une connexion et initialise le socket de communication avec le client ***
         *sock_client = accept(sock,(struct sockaddr *) &addrclient,&size);
 
         if(sock_client>=0){
