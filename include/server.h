@@ -29,6 +29,7 @@ void signal_handler(int signal, siginfo_t *siginfo, void *context) {
     running = 0;
 }
 
+
 // Liste des ports disponibles
 int * available_ports;
 

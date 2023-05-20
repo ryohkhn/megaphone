@@ -327,7 +327,6 @@ void receive_file_udp(char * file_directory, int port, int fil, char * filename)
     int buffer_size = 0;
     int buffer_capacity = 4; // Taille initiale
 
-    /// changement malloc par calloc pour init a null, et passer la condition du while l.398
     received_msgs_buffer = calloc( buffer_capacity, sizeof(message_udp *));
     testMalloc(received_msgs_buffer);
     printf("on écoute sur :\n");
@@ -556,7 +555,8 @@ ssize_t recv_bytes(int sockfd, char *buf, ssize_t len){
 
     while(bytes_left > 0){
         ssize_t read = recv(sockfd, buf + offset, bytes_left, 0);
-        if(read < 0){
+        /// modification condition, old = if(read < 0)
+        if(read < 0 || read == (size_t) -1){
             return read;
         }
 
@@ -586,8 +586,8 @@ ssize_t recv_unlimited_bytes(int sockfd, char* buf, ssize_t buffer_size){
             buf = new_buffer;
         }
     }
-
-    if (bytes_received < 0) {
+    /// modification condition, old = if(read < 0)
+    if (bytes_received < 0 || bytes_received == (size_t) -1) {
         return bytes_received;
     }
 
@@ -595,7 +595,9 @@ ssize_t recv_unlimited_bytes(int sockfd, char* buf, ssize_t buffer_size){
 }
 
 // selon les standards de windows
+// 1 = valide, 0 = invalide
 int is_valid_filename(const char *filename) {
+    if(strlen(filename) < 3) return 0;
     const char *invalid_characters = "/\\?%*:|\"<>";
     return strpbrk(filename, invalid_characters) == NULL;
 }

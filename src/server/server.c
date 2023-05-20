@@ -159,14 +159,14 @@ void inscription_client(char * pseudo, int sock_client){
     send_message(REGISTER, current_client->id, 0, 0, sock_client);
 }
 
-void add_message_to_fil(client_message *msg, uint16_t fil_number) {
+void add_message_to_fil(client_message *msg, uint16_t fil_number, int isFile) {
     pthread_mutex_lock(&fil_mutex);
     fil* current_fil = &fils[fil_number];
     current_fil->nb_messages++;
 
     message_node *new_node = malloc(sizeof(message_node));
     testMalloc(new_node);
-    new_node->isFile = 0;
+    new_node->isFile = isFile;
     new_node->msg = malloc(sizeof(message));
     testMalloc(new_node->msg);
     new_node->msg->datalen = msg->datalen;
@@ -180,6 +180,7 @@ void add_message_to_fil(client_message *msg, uint16_t fil_number) {
     current_fil->head = new_node;
     pthread_mutex_unlock(&fil_mutex);
 }
+
 
 char **retrieve_messages_from_fil(uint16_t fil_number) {
     pthread_mutex_lock(&fil_mutex);
@@ -219,7 +220,7 @@ void post_message(client_message *msg,int sock_client){
         return;
     }
 
-    add_message_to_fil(msg,numfil);
+    add_message_to_fil(msg,numfil, 0);
 
     //TEST print all messages in the fil after adding the new one
     char **res=retrieve_messages_from_fil(numfil);
@@ -443,7 +444,6 @@ void *send_notifications(void *arg){
     return NULL;
 }
 
-
 void add_subscription_to_fil(client_message *received_msg, int sock_client){
     uint16_t numfil=ntohs(received_msg->numfil);
     int id=ntohs(received_msg->entete.val)>>5;
@@ -547,7 +547,6 @@ void add_subscription_to_fil(client_message *received_msg, int sock_client){
     if(nboctet<=0)perror("send");
 }
 
-
 void download_file(client_message * received_msg, int sockclient) {
     printf("downloaded_files\n");
     printf("\n\nenvoie 1ere réponse au client:\n");
@@ -622,28 +621,10 @@ void add_file(client_message *received_msg, int sock_client) {
 
     release_port(port);
 
-    pthread_mutex_lock(&fil_mutex);
     // on ajoute le fichier au fil
     printf("on ajoute le fichier au fil\n");
-    fil* current_fil = &fils[received_msg->numfil];
+    add_message_to_fil(received_msg,received_msg->numfil, 1);
 
-    message_node *new_node = malloc(sizeof(message_node));
-    testMalloc(new_node);
-    new_node->isFile = 1;
-    new_node->msg=malloc(sizeof(message));
-    testMalloc(new_node->msg);
-
-    new_node->msg->datalen = received_msg->datalen;
-    new_node->msg->id=get_id_entete(received_msg->entete.val);
-
-    new_node->msg->data=malloc(sizeof(uint8_t) * new_node->msg->datalen);
-    testMalloc(new_node->msg->data);
-
-    memcpy(new_node->msg->data,received_msg->data,new_node->msg->datalen);
-
-    new_node->next = current_fil->head;
-    current_fil->head = new_node;
-    pthread_mutex_unlock(&fil_mutex);
 }
 
 

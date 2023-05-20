@@ -365,14 +365,15 @@ void download_file(int nbfil){
     msg->numfil = htons(nbfil);
 
     // on récupère le nom du fichier
-    // todo afficher la liste des fichiers disponibles sur le thread nbfil
-    // todo tester si nom de fichier disponible dans la liste
+    printf("Récupération du nom du fichier\n");
     char *filename = malloc(sizeof(char) * 512);
+    testMalloc(filename);
     while(1){
-        printf("Please enter the name of the file: ");
-        testMalloc(filename);
+        // on récupère le nom du fichier
+        printf("Please enter the name of the file (<512 characters) : ");
         scanf("%s", filename);
-        break;
+        if(is_valid_filename(filename)) break;
+        printf("File name invalid\n");
     }
 
     // on finit de remplir le message du client au serveur
@@ -411,20 +412,23 @@ void download_file(int nbfil){
     // reception du message serveur retour (en TCP)
     printf("\n\nRéception du message du serveur\n");
     uint16_t server_msg[3];
-    ssize_t recu = recv(clientfd, server_msg, 3 * sizeof(uint16_t), 0);
+    /// changement recv to recv_bytes
+    ssize_t recu = recv_bytes(clientfd,(char*) server_msg, sizeof(uint16_t) * 3);
+
+    if (recu == (size_t) -1) {
+        perror("erreur lecture");
+        goto error;
+    }
+    if (recu == 0) {
+        printf("serveur off\n");
+        goto error;
+    }
+
     printf("message retour du serveur: \n");
     printf("entete = %hu\n", server_msg[0]);
     printf("nb fil = %hu\n", server_msg[1]);
     printf("port = %hu\n", server_msg[2]);
     printf("retour du serveur reçu\n");
-    if (recu < 0) {
-        perror("erreur lecture");
-        exit(4);
-    }
-    if (recu == 0) {
-        printf("serveur off\n");
-        exit(0);
-    }
 
     printf("\n\nappel boucle ecoute udp \n\n");
     // appelle a la boucle qui écoute le message en UDP
@@ -434,6 +438,11 @@ void download_file(int nbfil){
     // free et nettoyage
     free(filename);
     release_port(port);
+    return;
+
+    error:
+    release_port(port);
+    free(filename);
 
 }
 
@@ -499,31 +508,32 @@ void add_file(int nbfil) {
 
 
     printf("Envoi du message au serveur\n");
-    /// modif datalen + 1 -> datalen
     ssize_t ecrit = send(clientfd, serialized_msg, sizeof(uint16_t) * 3 + sizeof(char) * (msg->datalen), 0);
 
     if (ecrit == (size_t) -1) {
         perror("Erreur ecriture");
-        exit(3);
+        goto error;
     }
     if (ecrit == 0) {
         printf("serveur off\n");
-        exit(0);
+        goto error;
+
     }
 
     printf("Réception du message du serveur\n");
     // reception du message serveur
     uint16_t server_msg[3];
-    ssize_t recu = recv(clientfd, server_msg, 3 * sizeof(uint16_t), 0);
+    /// changement recv to recv_bytes
+    ssize_t recu = recv_bytes(clientfd,(char*)server_msg, sizeof(uint16_t) * 3);
 
     printf("retour du serveur reçu\n");
     if (recu == (size_t) -1) {
         perror("erreur lecture");
-        exit(4);
+        goto error;
     }
     if (recu == 0) {
         printf("serveur off\n");
-        exit(0);
+        goto error;
     }
 
     for(int i = 0; i < 3; i++){
@@ -543,10 +553,19 @@ void add_file(int nbfil) {
     // nettoyage et free
     free(filename);
     free(serialized_msg);
+    free(msg->data);
     free(msg);
     fclose(file);
-}
+    return;
 
+    error:
+    free(msg->data);
+    free(msg);
+    free(filename);
+    free(serialized_msg);
+    fclose(file);
+
+}
 
 void client(){
     int fdsock=socket(PF_INET,SOCK_STREAM,0);
@@ -571,8 +590,6 @@ void client(){
 
     clientfd=fdsock;
 }
-
-
 
 void print_ascii(){
     printf("  ------------------------------------------------------------  \n"
@@ -603,7 +620,6 @@ res_inscription *inscription_client(char pseudo[10]){
     inscription *i=create_inscription(pseudo);
     return send_inscription(i);
 }
-
 
 void run(){
     int choice;
@@ -715,8 +731,6 @@ void run(){
         free(response);
     }
 }
-
-
 
 int main(void){
     run();
