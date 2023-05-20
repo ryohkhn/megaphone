@@ -67,22 +67,23 @@ client_message *string_to_client_message(const char *buffer) {
     testMalloc(msg);
 
     // Copy entete, numfil, and nb from the buffer
-    memcpy(&(msg->entete.val), buffer, sizeof(uint16_t));
-    memcpy(&(msg->numfil), buffer + sizeof(uint16_t), sizeof(uint16_t));
-    memcpy(&(msg->nb), buffer + sizeof(uint16_t) * 2, sizeof(uint16_t));
+    // memcpy(&(msg->entete.val), buffer, sizeof(uint16_t));
+    memcpy(&(msg->numfil), buffer, NUMFIL_SIZE);
+    memcpy(&(msg->nb), buffer + NUMFIL_SIZE, NB_SIZE);
+    memcpy(&(msg->datalen), buffer + NUMFIL_SIZE + NB_SIZE, DATALEN_SIZE);
 
     // Extract datalen from the buffer, located right after nb
-    uint8_t datalen = buffer[sizeof(uint16_t) * 3];
+    // uint8_t datalen = buffer[NUMFIL_SIZE + NB_SIZE];
 
     // Allocate memory for data
-    msg->data = malloc(sizeof(uint8_t) * (datalen));
-    testMalloc(msg->data);
+    // msg->data = malloc(sizeof(uint8_t) * (datalen));
+    // testMalloc(msg->data);
 
     // Copy the data from the buffer, starting after datalen
-    memcpy(msg->data, buffer + sizeof(uint16_t) * 3 + sizeof(uint8_t), sizeof(uint8_t)*(datalen));
+    // memcpy(msg->data, buffer + sizeof(uint16_t) * 3 + sizeof(uint8_t), sizeof(uint8_t)*(datalen));
 
     // Manually set the datalen as the first byte of the data array
-    msg->datalen = datalen;
+    // msg->datalen = datalen;
 
     return msg;
 }

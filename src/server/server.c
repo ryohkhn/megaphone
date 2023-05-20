@@ -626,7 +626,131 @@ void add_file(client_message *received_msg, int sock_client) {
 
 }
 
+void *serve(void *arg){
+    // on cherche codereq pour creer la structure correspondante et appeler la bonne fonction
+    int sock_client=*((int *) arg);
 
+    char *buffer = malloc(HEADER_SIZE);
+    testMalloc(buffer);
+
+    ssize_t read = recv_bytes(sock_client,buffer,HEADER_SIZE);
+    if(read<0){
+        perror("recv server first header");
+        exit(1);
+    }
+    else if(read==0){
+        printf("Connexion with server closed");
+        close(sock_client);
+    }
+
+    // We get the value of the header
+    uint16_t header;
+    memcpy(&header, buffer, HEADER_SIZE);
+    free(buffer);
+
+    request_type codereq = get_codereq_entete(header);
+    printf("CODEREQ %d\n",codereq);
+
+    if(codereq == REGISTER){
+        buffer = malloc(PSEUDO_SIZE);
+        testMalloc(buffer);
+
+        read = recv_bytes(sock_client,buffer,PSEUDO_SIZE);
+        if(read<0){
+            perror("recv server pseudo register");
+            exit(1);
+        }
+        else if(read==0){
+            printf("Connexion with server closed");
+            close(sock_client);
+        }
+
+        inscription *insc = malloc(sizeof(inscription));
+        memcpy(&insc->pseudo,buffer,PSEUDO_SIZE);
+        free(buffer);
+
+        inscription_client(insc->pseudo,sock_client);
+    }
+    else{
+        ssize_t len = CLIENT_MESSAGE_SIZE + DATALEN_SIZE - HEADER_SIZE;
+        buffer = malloc(len);
+        read = recv_bytes(sock_client,buffer,len);
+        if(read<0){
+            perror("recv client message in server");
+            exit(1);
+        }
+        else if(read==0){
+            printf("Connexion with server closed");
+            close(sock_client);
+        }
+
+        client_message *received_msg = string_to_client_message(buffer);
+        received_msg->entete.val=header;
+        uint8_t datalen = received_msg->datalen;
+        printf("Datalen: %d\n",datalen);
+
+        if(datalen != 0){
+            buffer = malloc(sizeof(char)*datalen);
+            read = recv_bytes(sock_client,buffer,datalen);
+            if(read<0){
+                perror("recv data from client");
+                exit(1);
+            }
+            else if(read==0){
+                printf("la connexion a été fermée\n");
+                close(sock_client);
+                printf("Connexion with server closed");
+            }
+
+            received_msg->data = malloc(sizeof(uint8_t) * datalen);
+            testMalloc(received_msg->data);
+
+            // Copy the data from the buffer, starting after datalen
+            memcpy(received_msg->data, buffer, sizeof(uint8_t)*datalen);
+        }
+
+        switch(codereq){
+            case POST_MESSAGE:
+                if(received_msg->nb!=0)
+                    send_error_message(sock_client);
+                else
+                    post_message(received_msg,sock_client);
+                break;
+            case LIST_MESSAGES:
+                if(received_msg->datalen!=0)
+                    send_error_message(sock_client);
+                else
+                    request_threads_list(received_msg,sock_client);
+                break;
+            case SUBSCRIBE:
+                printf("User wants to join fil %d\n",ntohs(received_msg->numfil));
+                add_subscription_to_fil(received_msg,sock_client);
+                break;
+            case UPLOAD_FILE:
+                if(received_msg->nb!=0)
+                    send_error_message(sock_client);
+                else
+                    add_file(received_msg,sock_client);
+                break;
+            case DOWNLOAD_FILE:
+                download_file(received_msg, sock_client);
+                break;
+            default:
+                perror("Server codereq selection");
+                break;
+        }
+    }
+
+    ssize_t ret = close(sock_client);
+    if(ret<0){
+        perror("Close client's socket in thread");
+        exit(1);
+    }
+
+    return NULL;
+}
+
+/*
 void *serve(void *arg){
     // on cherche codereq pour creer la structure correspondante et appeler la bonne fonction
     int sock_client=*((int *) arg);
@@ -696,6 +820,7 @@ void *serve(void *arg){
     }
     return NULL;
 }
+*/
 
 
 int main(){

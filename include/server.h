@@ -42,10 +42,13 @@ pthread_mutex_t port_mutex = PTHREAD_MUTEX_INITIALIZER;
 // Mutex pour la gestion de la liste de clients
 pthread_mutex_t client_mutex = PTHREAD_MUTEX_INITIALIZER;
 
+<<<<<<< HEAD
 // Mutex pour la taille de la liste de threads
 pthread_mutex_t thread_size_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 
+=======
+>>>>>>> 859f415 (change the way the server received the first client data, it's now more TCP safe)
 #define MEGAPHONE_SERVER_H
 
 #endif //MEGAPHONE_SERVER_H

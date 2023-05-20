@@ -16,12 +16,14 @@
 #define MAX_PORT 65535
 #define PORT_RANGE (MAX_PORT - MIN_PORT + 1)
 
+#define HEADER_SIZE (sizeof(uint16_t))
 #define SERVER_MESSAGE_SIZE (sizeof(uint16_t)*3)
 #define CLIENT_MESSAGE_SIZE (sizeof(uint16_t)*3)
 #define REGISTER_SIZE (sizeof(uint8_t)*12)
 #define SERVER_SUBSCRIPTION_SIZE (sizeof(uint16_t)*11)
 #define NOTIFICATION_SIZE (sizeof(uint8_t)*34)
 #define NUMFIL_SIZE (sizeof(uint16_t))
+#define NB_SIZE (sizeof(uint16_t))
 #define ORIGINE_SIZE (sizeof(uint8_t)*10)
 #define PSEUDO_SIZE (sizeof(uint8_t)*10)
 #define DATALEN_SIZE (sizeof(uint8_t))
