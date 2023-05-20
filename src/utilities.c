@@ -1,5 +1,8 @@
 #include "../include/utilities.h"
 
+//Mutex pour l'envoie d'un fichier (éviter de lire le meme fichier en même temps)
+pthread_mutex_t file_reader_mutex = PTHREAD_MUTEX_INITIALIZER;
+
 void testMalloc(void *ptr){
     if(ptr==NULL){
         free(ptr);
@@ -202,7 +205,6 @@ char *client_message_to_string(client_message *msg) {
     return buffer;
 }
 
-
 notification *string_to_notification(const char *buffer){
     notification *notification=malloc(sizeof(server_billet));
     testMalloc(notification);
@@ -221,7 +223,6 @@ notification *string_to_notification(const char *buffer){
 
     return notification;
 }
-
 
 client_message *copy_client_message(client_message *msg) {
     client_message *copy = malloc(sizeof(client_message));
@@ -326,7 +327,8 @@ void receive_file_udp(char * file_directory, int port, int fil, char * filename)
     int buffer_size = 0;
     int buffer_capacity = 4; // Taille initiale
 
-    received_msgs_buffer = malloc(sizeof(message_udp *) * buffer_capacity);
+    /// changement malloc par calloc pour init a null, et passer la condition du while l.398
+    received_msgs_buffer = calloc( buffer_capacity, sizeof(message_udp *));
     testMalloc(received_msgs_buffer);
     printf("on écoute sur :\n");
     printf("sock = %d\n", sock_udp);
@@ -384,28 +386,46 @@ void receive_file_udp(char * file_directory, int port, int fil, char * filename)
         // gestion du cas de désordre des paquets et écriture dans le file
         printf("gestion de désordre dans les paquets et écriture dans le file\n");
         if (received_msg_udp->numbloc == packet_num + 1) {
+            printf("1\n");
             // si le paquet qui arrive est le bon (suivant le dernier écrit)
             // on l'écrit a sa destination
             fwrite(received_msg_udp->data, 1, sizeof(char) * bytes_read - sizeof(uint16_t) * 2, file);
             packet_num = received_msg_udp->numbloc;
+            printf("2\n");
+
 
             // Vérifier si les blocs suivants sont déjà dans le buffer
             while (packet_num + 1 < buffer_capacity && received_msgs_buffer[packet_num + 1] != NULL) {
+                printf("3\n");
                 packet_num = received_msgs_buffer[packet_num + 1]->numbloc;
                 // si le paquet suivant est deja dans notre buffer de stockage temporaire
                 // on l'écrit a sa destination
                 fwrite(received_msgs_buffer[packet_num]->data, 1, sizeof(char) * bytes_read - sizeof(uint16_t) * 2, file);
+                printf("4\n");
+
             }
+            printf("5\n");
+
         } else {
+            printf("6\n");
+
             // Si le bloc n'est pas le bloc attendu, stocker dans le tableau
             // Vérifier si la capacité du tableau doit être augmentée
             while (received_msg_udp->numbloc >= buffer_capacity) {
+                printf("7\n");
+
                 buffer_capacity *= 2; // Doubler la capacité
                 received_msgs_buffer = realloc(received_msgs_buffer, sizeof(message_udp *) * buffer_capacity);
                 testMalloc(received_msgs_buffer);
+                printf("8\n");
+
             }
+            printf("9\n");
+
             received_msgs_buffer[received_msg_udp->numbloc] = received_msg_udp;
             buffer_size = (received_msg_udp->numbloc > buffer_size) ? received_msg_udp->numbloc : buffer_size;
+            printf("10\n");
+
         }
 
         // on free

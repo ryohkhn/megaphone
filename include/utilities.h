@@ -29,8 +29,6 @@
 #define NOTIFICATION_INTERVAL 5
 #define MULTICAST_PORT 49152
 
-//Mutex pour l'envoie d'un fichier (éviter de lire le meme fichier en même temps)
-pthread_mutex_t file_reader_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 typedef enum {
     REGISTER = 1,

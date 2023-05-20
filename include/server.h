@@ -7,6 +7,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <sys/stat.h>
 
 // Maximum number of fils possible (2^16 - 1)
 #define MAX_FIL 65536

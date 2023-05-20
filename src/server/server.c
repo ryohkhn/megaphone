@@ -1,3 +1,4 @@
+
 #include "../../include/server.h"
 
 // Fonction pour initialiser la liste des ports disponibles
@@ -585,7 +586,6 @@ void download_file(client_message * received_msg, int sockclient) {
 
 void add_file(client_message *received_msg, int sock_client) {
     printf("\n\ndébut add_file\n\n");
-    pthread_mutex_lock(&fil_mutex);
     printf("test1\n");
     // on fait les vérifications de pour ajouter un billet à un fil
     if (received_msg->numfil == 0) {
@@ -604,7 +604,6 @@ void add_file(client_message *received_msg, int sock_client) {
     }
     printf("test4\n");
 
-    pthread_mutex_unlock(&fil_mutex);
 
 
     printf("allocate port\n");
@@ -785,6 +784,15 @@ int main(){
     pthread_t notification_thread;
     pthread_create(&notification_thread, NULL, send_notifications, (void *)fils);
 
+    // create the directory for added files
+    int result = mkdir(directory_for_files, 0777);
+    if (result == 0) {
+        printf("Dossier \"%s\" créé avec succès.\n", directory_for_files);
+    } else if (errno == EEXIST) {
+        printf("Le dossier \"%s\" existe déjà.\n", directory_for_files);
+    } else {
+        perror("Erreur lors de la création du dossier");
+    }
 
 
     while(running){

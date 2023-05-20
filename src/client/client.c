@@ -235,7 +235,6 @@ res_inscription* send_inscription(inscription *i){
     return res;
 }
 
-
 void *listen_multicast_messages(void *arg) {
     // Extract the multicast address from the argument
     server_subscription_message *received_msg = (server_subscription_message *)arg;
@@ -308,7 +307,6 @@ void *listen_multicast_messages(void *arg) {
     close(sockfd);
     return NULL;
 }
-
 
 void subscribe_to_fil(uint16_t fil_number) {
     client_message *msg = malloc(sizeof(client_message));
