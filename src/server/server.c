@@ -548,6 +548,12 @@ void add_subscription_to_fil(client_message *received_msg, int sock_client){
 }
 
 void download_file(client_message * received_msg, int sockclient) {
+    // on fait les vérifications de pour ajouter un billet à un fil
+    if (received_msg->numfil == 0 || received_msg->numfil >= fils_size) {
+        printf("Client tried to read to a nonexistent fil\n");
+        send_message(NONEXISTENT_FIL,0,0,0,sockclient);
+        return;
+    }
     printf("downloaded_files\n");
     printf("\n\nenvoie 1ere réponse au client:\n");
     printf("received_msg->entete.val = %d\n", received_msg->entete.val);
@@ -585,23 +591,16 @@ void download_file(client_message * received_msg, int sockclient) {
 
 void add_file(client_message *received_msg, int sock_client) {
     printf("\n\ndébut add_file\n\n");
-    printf("test1\n");
     // on fait les vérifications de pour ajouter un billet à un fil
     if (received_msg->numfil == 0) {
-        printf("test2\n");
-
         add_new_fil(pseudo_from_id(get_id_entete(received_msg->entete.val)));
-        printf("test3\n");
-
         received_msg->numfil = fils_size - 1;
-
         printf("Numfil trouvé vide, création d'un nouveau fil : %d\n", received_msg->numfil);
     } else if (received_msg->numfil >= fils_size) {
-        // todo gérer le cas ou le fil n'existe pas
-        printf("Demande d'écriture sur un fil inexistant\n");
-        received_msg->numfil = 0;
+        printf("Client tried to write to a nonexistent fil\n");
+        send_message(NONEXISTENT_FIL,0,0,0,sock_client);
+        return;
     }
-    printf("test4\n");
 
 
 

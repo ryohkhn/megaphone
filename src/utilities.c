@@ -555,7 +555,6 @@ ssize_t recv_bytes(int sockfd, char *buf, ssize_t len){
 
     while(bytes_left > 0){
         ssize_t read = recv(sockfd, buf + offset, bytes_left, 0);
-        /// modification condition, old = if(read < 0)
         if(read < 0 || read == (size_t) -1){
             return read;
         }
@@ -586,7 +585,6 @@ ssize_t recv_unlimited_bytes(int sockfd, char* buf, ssize_t buffer_size){
             buf = new_buffer;
         }
     }
-    /// modification condition, old = if(read < 0)
     if (bytes_received < 0 || bytes_received == (size_t) -1) {
         return bytes_received;
     }

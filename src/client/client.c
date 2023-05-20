@@ -398,21 +398,21 @@ void download_file(int nbfil){
     ssize_t ecrit = send(clientfd, serialized_msg,
                          sizeof(uint16_t) * 3 + sizeof(char) * (msg->datalen), 0);
     printf("données envoyées lors du premier message = %zu\n",ecrit);
-    if (ecrit <= 0) {
-        perror("Erreur ecriture");
-        exit(3);
-    }
+
 
     //free
     free(serialized_msg);
     free(msg->data);
     free(msg);
 
+    if (ecrit <= 0) {
+        perror("Erreur ecriture");
+        goto error;
+    }
 
     // reception du message serveur retour (en TCP)
     printf("\n\nRéception du message du serveur\n");
     uint16_t server_msg[3];
-    /// changement recv to recv_bytes
     ssize_t recu = recv_bytes(clientfd,(char*) server_msg, sizeof(uint16_t) * 3);
 
     if (recu == (size_t) -1) {
@@ -422,6 +422,12 @@ void download_file(int nbfil){
     if (recu == 0) {
         printf("serveur off\n");
         goto error;
+    }
+
+    request_type codereq = get_codereq_entete(server_msg[0]);
+    if(codereq == NONEXISTENT_FIL){
+        printf("Error: the fil from which you tried to download a file does not exist.\n");
+        return;
     }
 
     printf("message retour du serveur: \n");
@@ -523,7 +529,6 @@ void add_file(int nbfil) {
     printf("Réception du message du serveur\n");
     // reception du message serveur
     uint16_t server_msg[3];
-    /// changement recv to recv_bytes
     ssize_t recu = recv_bytes(clientfd,(char*)server_msg, sizeof(uint16_t) * 3);
 
     printf("retour du serveur reçu\n");
@@ -534,6 +539,12 @@ void add_file(int nbfil) {
     if (recu == 0) {
         printf("serveur off\n");
         goto error;
+    }
+
+    request_type codereq = get_codereq_entete(server_msg[0]);
+    if(codereq == NONEXISTENT_FIL){
+        printf("Error: the fil you tried to post in doesn't exist.\n");
+        return;
     }
 
     for(int i = 0; i < 3; i++){
