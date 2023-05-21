@@ -342,7 +342,7 @@ void request_threads_list(client_message *msg, int sock_client){
     if(msg_numfil==0){
         pthread_mutex_lock(&fil_mutex);
         uint16_t total_nb=0;
-        for(uint16_t i=0; i<fils_size; ++i){
+        for(uint16_t i=1; i<fils_size; ++i){
             nb_fil=fils[i].nb_messages;
             if(msg_nb==0 || msg_nb>nb_fil){
                 total_nb+=nb_fil;
@@ -360,10 +360,8 @@ void request_threads_list(client_message *msg, int sock_client){
         memset(buffer,0,sizeof(char)*BUFSIZ);
         size_t offset=0;
 
-        for(int i=0; i<fils_size; ++i){
+        for(int i=1; i<fils_size; ++i){
             nb_fil=fils[i].nb_messages;
-            // skip the fil 0 if empty
-            if(i==0 && nb_fil==0) continue;
 
             uint16_t cpy_msg_nb=msg_nb;
             if(cpy_msg_nb==0 || cpy_msg_nb>nb_fil){

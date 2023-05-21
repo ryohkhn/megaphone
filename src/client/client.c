@@ -188,13 +188,10 @@ void request_n_tickets(res_inscription *i,uint16_t numfil,uint16_t n){
     msg->nb = htons(n);
     msg->datalen = 0;
 
-    printf("\nEntête envoyée au serveur:\n");
-    print_bits(ntohs(msg->entete.val));
-
     ssize_t ecrit = send(clientfd,msg,CLIENT_MESSAGE_SIZE+DATALEN_SIZE,0);
     if(ecrit<=0){
         perror("Error send");
-        exit(3);
+        return;
     }
     printf("Message envoyé au serveur.\n");
 
@@ -221,7 +218,6 @@ res_inscription* send_inscription(inscription *i){
         perror("erreur ecriture");
         exit(3);
     }
-    print_bits(i->entete.val);
     printf("demande d'inscription envoyée\n");
 
     char *buffer = malloc(SERVER_MESSAGE_SIZE);

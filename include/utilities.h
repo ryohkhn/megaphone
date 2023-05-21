@@ -32,6 +32,7 @@
 #define MULTICAST_PORT 49152
 
 
+// Enum that represents each CODEREQ of the server
 typedef enum {
     REGISTER = 1,
     POST_MESSAGE = 2,
@@ -71,7 +72,6 @@ typedef struct message_udp{
     uint16_t numbloc;
     char * data;
 } message_udp;
-
 
 typedef struct server_billet{
     uint16_t numfil;
@@ -125,6 +125,7 @@ typedef struct fil{
     int subscribed;
 } fil;
 
+// Linked list of clients
 typedef struct list_client{
     unsigned long id;
     char * pseudo;
@@ -133,10 +134,6 @@ typedef struct list_client{
 
 
 void testMalloc(void *ptr);
-
-void print_8bits(uint8_t n);
-void print_bits(uint16_t n);
-void print_inscription_bits(inscription *msg);
 
 entete *create_entete(uint8_t codereq,uint16_t id);
 
@@ -156,8 +153,6 @@ notification *string_to_notification(const char* buffer);
 
 uint16_t get_id_entete(uint16_t ent);
 request_type get_codereq_entete(uint16_t val);
-
-uint16_t chars_to_uint16(char a,char b);
 
 long size_file(FILE *file);
 

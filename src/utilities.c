@@ -1,43 +1,41 @@
 #include "../include/utilities.h"
 
+/**
+ * Function used to test if a malloc or realloc worked
+ * @param ptr the allocated pointer
+ */
 void testMalloc(void *ptr){
     if(ptr==NULL){
         free(ptr);
-        perror("Erreur de malloc() ou realloc().\n");
+        perror("malloc() or realloc() error.\n");
         exit(1);
     }
 }
 
+/**
+ * Function to get the id from a header received over the network
+ * @param ent the header
+ * @return the id as a 16 bits integer
+ */
 uint16_t get_id_entete(uint16_t ent){
     return ntohs(ent)>>5;
 }
 
+/**
+ * Function to get the codereq from a header received over the network
+ * @param val the header
+ * @return the codereq as a request_type macro
+ */
 request_type get_codereq_entete(uint16_t val){
     return ntohs(val) & 0x1F;
 }
 
-uint16_t chars_to_uint16(char a,char b){
-    return ((uint16_t)b << 8) | a;
-}
-
-void print_8bits(uint8_t n){
-    for(int i=7; i>=0; i--){
-        uint8_t mask=1<<i;
-        uint8_t bit=(n & mask)>>i;
-        printf("%u",bit);
-    }
-    printf("\n");
-}
-
-void print_bits(uint16_t n){
-    for(int i=0; i<=15; i++){
-        uint16_t mask=1<<i;
-        uint16_t bit=(n & mask)>>i;
-        printf("%u",bit);
-    }
-    printf("\n");
-}
-
+/**
+ * Function used to create a header structure with proper bit ordering
+ * @param codereq the codereq for the header
+ * @param id the id for the header
+ * @return an allocated header structure
+ */
 entete *create_entete(uint8_t codereq,uint16_t id){
     entete* entete=malloc(sizeof(struct entete));
     testMalloc(entete);
@@ -47,64 +45,28 @@ entete *create_entete(uint8_t codereq,uint16_t id){
     return entete;
 }
 
-void print_inscription_bits(inscription *msg){
-    uint8_t *bytes=(uint8_t *) msg;
-    for(size_t i=0; i<sizeof(inscription); i++){
-        for(int j=7; j>=0; j--){
-            printf("%d",(bytes[i]>>j) & 1);
-        }
-        printf(" ");
-    }
-    printf("\n");
-}
-
-// on cherche codereq pour creer la structure correspondante et appeler la bonne fonction
-
-client_message *string_to_client_message2(const char *buffer) {
-    client_message *msg = malloc(sizeof(client_message));
-    testMalloc(msg);
-    // Copy entete, numfil, and nb from the buffer
-    memcpy(&(msg->entete.val), buffer, sizeof(uint16_t));
-    memcpy(&(msg->numfil), buffer + sizeof(uint16_t), sizeof(uint16_t));
-    memcpy(&(msg->nb), buffer + sizeof(uint16_t) * 2, sizeof(uint16_t));
-    // Extract datalen from the buffer, located right after nb
-    uint8_t datalen = buffer[sizeof(uint16_t) * 3];
-    // Allocate memory for data
-    msg->data = malloc(sizeof(uint8_t) * (datalen));
-    testMalloc(msg->data);
-    // Copy the data from the buffer, starting after datalen
-    memcpy(msg->data, buffer + sizeof(uint16_t) * 3 + sizeof(uint8_t), sizeof(uint8_t)*(datalen));
-    // Manually set the datalen as the first byte of the data array
-    msg->datalen = datalen;
-    return msg;
-}
-
+/**
+ * Function to serialize a buffer into an allocated client_message structure
+ * @param buffer the buffer to serialize
+ * @return the allocated structure
+ */
 client_message *string_to_client_message(const char *buffer) {
     client_message *msg = malloc(sizeof(client_message));
     testMalloc(msg);
 
-    // Copy entete, numfil, and nb from the buffer
-    // memcpy(&(msg->entete.val), buffer, sizeof(uint16_t));
+    // Copy the numfil, nb and datalen
     memcpy(&(msg->numfil), buffer, NUMFIL_SIZE);
     memcpy(&(msg->nb), buffer + NUMFIL_SIZE, NB_SIZE);
     memcpy(&(msg->datalen), buffer + NUMFIL_SIZE + NB_SIZE, DATALEN_SIZE);
 
-    // Extract datalen from the buffer, located right after nb
-    // uint8_t datalen = buffer[NUMFIL_SIZE + NB_SIZE];
-
-    // Allocate memory for data
-    // msg->data = malloc(sizeof(uint8_t) * (datalen));
-    // testMalloc(msg->data);
-
-    // Copy the data from the buffer, starting after datalen
-    // memcpy(msg->data, buffer + sizeof(uint16_t) * 3 + sizeof(uint8_t), sizeof(uint8_t)*(datalen));
-
-    // Manually set the datalen as the first byte of the data array
-    // msg->datalen = datalen;
-
     return msg;
 }
 
+/**
+ * Function to serialize a buffer into an allocated server_message structure
+ * @param buffer the buffer to serialize
+ * @return the allocated structure
+ */
 server_message *string_to_server_message(const char *buffer) {
     server_message *msg = malloc(sizeof(server_message));
     testMalloc(msg);
@@ -117,6 +79,11 @@ server_message *string_to_server_message(const char *buffer) {
     return msg;
 }
 
+/**
+ * Function to serialize a server_subscription_message structure into a buffer
+ * @param buffer the structure to serialize
+ * @return the serialized buffer
+ */
 char* server_message_to_string(server_message *msg){
     size_t buffer_size = SERVER_MESSAGE_SIZE;
     char *buffer=malloc(buffer_size);
@@ -129,6 +96,11 @@ char* server_message_to_string(server_message *msg){
     return buffer;
 }
 
+/**
+ * Function to serialize a server_subscription_message structure into a buffer
+ * @param buffer the structure to serialize
+ * @return the serialized buffer
+ */
 char *server_subscription_message_to_string(server_subscription_message *msg){
     size_t buffer_size=sizeof(uint8_t)*22;
     char *buffer=malloc(buffer_size);
@@ -142,6 +114,11 @@ char *server_subscription_message_to_string(server_subscription_message *msg){
     return buffer;
 }
 
+/**
+ * Function to serialize a buffer into an allocated server_subscription_message structure
+ * @param buffer the buffer to serialize
+ * @return the allocated structure
+ */
 server_subscription_message *string_to_server_subscription_message(const char *buffer) {
     server_subscription_message *msg = malloc(sizeof(server_subscription_message));
     testMalloc(msg);
@@ -161,6 +138,11 @@ server_subscription_message *string_to_server_subscription_message(const char *b
     return msg;
 }
 
+/**
+ * Function to serialize a buffer into an allocated server_billet structure
+ * @param buffer the buffer to serialize
+ * @return the allocated structure
+ */
 server_billet *string_to_server_billet(const char *buffer) {
     server_billet *billet= malloc(sizeof(server_billet));
     testMalloc(billet);
@@ -195,13 +177,12 @@ server_billet *string_to_server_billet(const char *buffer) {
     return billet;
 }
 
+/**
+ * Function to serialize a client_message structure into a buffer
+ * @param buffer the structure to serialize
+ * @return the serialized buffer
+ */
 char *client_message_to_string(client_message *msg) {
-
-    printf("\nclient_message_to_string\n");
-    printf("msg->entete.val = %d\n", msg->entete.val);
-    printf("datalen = %d\n",msg->datalen);
-    printf("msg->data = %s\n", msg->data);
-
     size_t buffer_size = sizeof(uint16_t) * 3 + sizeof(char) * (msg->datalen + 1);
 
     char *buffer = malloc(buffer_size);
@@ -213,16 +194,14 @@ char *client_message_to_string(client_message *msg) {
     memcpy(buffer + sizeof(uint16_t) * 3, &(msg->datalen), sizeof(uint8_t));
     memcpy(buffer + sizeof(uint16_t) * 3 + sizeof(uint8_t), msg->data, msg->datalen);
 
-    client_message * test = string_to_client_message2(buffer);
-    printf("test->entete.val = %d\n", test->entete.val);
-    printf("datalen = %d\n",test->datalen);
-    printf("test->data = %s\n", test->data);
-    printf("fin client_message_to_string\n\n");
-
-
     return buffer;
 }
 
+/**
+ * Function to serialize a buffer into an allocated notification structure
+ * @param buffer the buffer to serialize
+ * @return the allocated structure
+ */
 notification *string_to_notification(const char *buffer){
     notification *notification=malloc(sizeof(server_billet));
     testMalloc(notification);
@@ -242,20 +221,11 @@ notification *string_to_notification(const char *buffer){
     return notification;
 }
 
-client_message *copy_client_message(client_message *msg) {
-    client_message *copy = malloc(sizeof(client_message));
-    testMalloc(copy);
-
-    copy->entete = msg->entete;
-    copy->numfil = msg->numfil;
-    copy->nb = msg->nb;
-    uint8_t datalen = msg->datalen;
-    copy->data = malloc(sizeof(uint8_t) * (datalen));
-    testMalloc(copy->data);
-    memcpy(copy->data, msg->data, sizeof(uint8_t) * (datalen));
-    return copy;
-}
-
+/**
+ * Function to determine the size of a file
+ * @param file the file name
+ * @return the size of the file
+ */
 long size_file(FILE *file) {
     fseek(file, 0, SEEK_END);
     long taille = ftell(file);
@@ -263,29 +233,8 @@ long size_file(FILE *file) {
     return taille;
 }
 
-void handle_error(int codereq){
-    switch(codereq){
-        case 31:
-            printf("Erreur envoyée par le serveur\n");
-            break;
-    }
-}
-
-// fonction pour affichier un tableau d'entiers
-void print_array(int *array, int size) {
-    printf("print_array\n");
-    printf("Le tableau : [");
-    for (int i = 0; i < size; i++) {
-        printf("%d", array[i]);
-        if (i < size - 1) {
-            printf(", ");
-        }
-    }
-    printf("]\n");
-}
-
 /**
- * function that receive the file in UDP.
+ * Function that receive the file in UDP.
  * @param file_directory file where the file is wrote
  * @param port listening port
  * @param fil thread where the file is
@@ -517,6 +466,14 @@ void send_file_udp(FILE * file, int port, client_message *msg, char * addr_IP) {
     close(sock_udp);
 }
 
+/**
+ * Function to receive exactly `len` bytes from the `sockfd` fd.
+ * The function uses a loop the be TCP "safe".
+ * @param sockfd the socket to recv from
+ * @param buf the buffer to copy bytes into
+ * @param len the number of bytes to receive
+ * @return the number of bytes received or the return value of recv if an error occurs
+ */
 ssize_t recv_bytes(int sockfd, char *buf, ssize_t len){
     ssize_t bytes_left = len;
     size_t offset = 0;
@@ -534,12 +491,19 @@ ssize_t recv_bytes(int sockfd, char *buf, ssize_t len){
     return len;
 }
 
+/**
+ * Function to receive an unlimited amount of bytes from the server.
+ * The function uses a loop the be TCP "safe".
+ * @param sockfd the socket to recv from
+ * @param buf the buffer to copy bytes into
+ * @param buffer_size the initial size of the buffer
+ * @return the number of bytes received or the return value of recv if an error occurs
+ */
 ssize_t recv_unlimited_bytes(int sockfd, char* buf, ssize_t buffer_size){
     ssize_t bytes_received;
     ssize_t total_bytes_received = 0;
 
     while ((bytes_received = recv(sockfd, buf + total_bytes_received, BUFSIZ, 0)) > 0) {
-        printf("Octets reçus du serveur: %zu\n",bytes_received);
         total_bytes_received += bytes_received;
 
         // Check if the remaining buffer space is less than BUFSIZ
@@ -560,8 +524,12 @@ ssize_t recv_unlimited_bytes(int sockfd, char* buf, ssize_t buffer_size){
     return total_bytes_received;
 }
 
-// selon les standards de windows
-// 1 = valide, 0 = invalide
+/**
+ * Function that checks if the file has a valid name.
+ * It uses windows standards for name detection.
+ * @param filename the name of the file
+ * @return a boolean, 1=vadid, 0=false
+ */
 int is_valid_filename(const char *filename) {
     if(strlen(filename) < 3) return 0;
     const char *invalid_characters = "/\\?%*:|\"<>";
