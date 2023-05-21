@@ -396,6 +396,19 @@ void send_fil_notification(uint16_t fil_index) {
     dest_addr.sin6_port = htons(MULTICAST_PORT);
     inet_pton(AF_INET6, (char*) fils[fil_index].addrmult, &dest_addr.sin6_addr);
 
+    // Initialising multicast
+    int ifindex = 0;
+    if(setsockopt(sockfd,IPPROTO_IPV6,IPV6_MULTICAST_IF,&ifindex,sizeof(ifindex))){
+        perror("Error initialising multicast");
+        pthread_mutex_unlock(&fil_mutex);
+        return;
+    }
+
+    char ipstr[INET6_ADDRSTRLEN];
+    // Assuming addr is your struct sockaddr_in6
+    //inet_ntop(AF_INET6, &(fils[fil_index].addrmult), ipstr, sizeof(ipstr));
+    printf("The IP address is %s\n", (char*) fils[fil_index].addrmult);
+
     // Send the notification messages
     message_node *current_message = fils[fil_index].head;
     message_node *last_multicasted_message = fils[fil_index].last_multicasted_message;
@@ -403,7 +416,7 @@ void send_fil_notification(uint16_t fil_index) {
 
     while (current_message != NULL && current_message->msg != NULL && current_message != last_multicasted_message){
         // Send the message
-        printf("DEBUG In boucle\n");
+        printf("DEBUG In boucle %s\n", (char*) fils[fil_index].addrmult);
 
         char *serialized_msg =message_to_notification(current_message->msg,htons(fil_index));
         size_t serialized_msg_size = sizeof(uint8_t) * 34;
@@ -465,8 +478,8 @@ void add_subscription_to_fil(client_message *received_msg, int sock_client){
         perror("inet_ntop");
         return;
     }
+    printf("Adress_str: %s\n",address_str);
 
-    uint8_t *addresse_a_envoyer;
     pthread_mutex_lock(&fil_mutex);
     // Check if fil already has a multicast address
     if(numfil >= fils_size || numfil == 0){
@@ -489,7 +502,6 @@ void add_subscription_to_fil(client_message *received_msg, int sock_client){
     }
     if(strlen(fils[numfil].addrmult)>0){
         printf("Multicast for this fil is already initialised.\n");
-        addresse_a_envoyer=(uint8_t *) fils[numfil].addrmult;
     }
     else{
         printf("INITIALISING MULTICAST ADDR.\n");
@@ -516,10 +528,6 @@ void add_subscription_to_fil(client_message *received_msg, int sock_client){
             return;
         }
 
-        addresse_a_envoyer=malloc(sizeof(uint8_t)*16); // Allocate memory for the address
-        testMalloc(addresse_a_envoyer);
-        memcpy(addresse_a_envoyer,server_addr.sin6_addr.s6_addr,sizeof(uint8_t)*16); // Copy the address bytes
-
         // Allocate memory for fils[numfil]->addrmult if it's not already allocated
         if(fils[numfil].addrmult==NULL){
             fils[numfil].addrmult=malloc(sizeof(uint8_t)*16);
@@ -527,7 +535,8 @@ void add_subscription_to_fil(client_message *received_msg, int sock_client){
         }
 
         // Copy the content of addresse_a_envoyer into fils[numfil]->addrmult
-        memcpy(fils[numfil].addrmult,server_addr.sin6_addr.s6_addr,sizeof(uint8_t)*16);
+        memcpy(fils[numfil].addrmult,address_str,sizeof(uint8_t)*16);
+        //printf()
     }
 
     // update fil subscription counter
@@ -542,7 +551,7 @@ void add_subscription_to_fil(client_message *received_msg, int sock_client){
     msg->nb=htons(MULTICAST_PORT);
     msg->addrmult=malloc(sizeof(uint8_t)*16);
     testMalloc(msg->addrmult);
-    memcpy(msg->addrmult,addresse_a_envoyer,sizeof(uint8_t)*16);
+    memcpy(msg->addrmult,address_str,sizeof(uint8_t)*16);
 
     for(int i=0; i<16; i++){
         for(int j=7; j>=0; j--){

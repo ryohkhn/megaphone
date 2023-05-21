@@ -265,13 +265,13 @@ void *listen_multicast_messages(void *arg) {
         return NULL;
     }
 
-
     struct ipv6_mreq mreq;
-    memcpy(&mreq.ipv6mr_multiaddr, multicast_address, sizeof(struct in6_addr));
+    //memcpy(&mreq.ipv6mr_multiaddr, multicast_address, sizeof(struct in6_addr));
+    inet_pton (AF_INET6, (char *) multicast_address, &mreq.ipv6mr_multiaddr.s6_addr);
     mreq.ipv6mr_interface = 0; // Let the system choose the interface
-
-    if(setsockopt(sockfd,IPPROTO_IPV6,IPV6_ADD_MEMBERSHIP,&mreq,sizeof(mreq))<0){
-        perror("Error setsockopt(IPV6_ADD_MEMBERSHIP)");
+    printf("%s\n",multicast_address);
+    if(setsockopt(sockfd,IPPROTO_IPV6,IPV6_JOIN_GROUP,&mreq,sizeof(mreq))<0){
+        perror("Error setsockopt(IPV6_JOIN_GROUP)");
         close(sockfd);
         return NULL;
     }
@@ -288,7 +288,8 @@ void *listen_multicast_messages(void *arg) {
     memset(&local_addr,0,sizeof(local_addr));
     local_addr.sin6_family = AF_INET6;
     local_addr.sin6_addr = in6addr_any;
-    local_addr.sin6_port = received_msg->nb;
+    local_addr.sin6_port = htons(MULTICAST_PORT);
+    printf("PORT %d\n",MULTICAST_PORT );
 
     if(bind(sockfd,(struct sockaddr *) &local_addr,sizeof(local_addr))<0){
         perror("Error bind");
