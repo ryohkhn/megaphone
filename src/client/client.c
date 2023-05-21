@@ -247,18 +247,18 @@ res_inscription* send_inscription(inscription *i){
 }
 
 void *listen_multicast_messages(void *arg) {
-    // Extract the multicast address from the argument
+
     server_subscription_message *received_msg = (server_subscription_message *)arg;
     uint8_t *multicast_address = received_msg->addrmult;
 
-    // Create a socket for listening to multicast messages
+
     int sockfd = socket(AF_INET6, SOCK_DGRAM, 0);
     if (sockfd < 0) {
         perror("socket");
         return NULL;
     }
 
-    // Join the multicast group
+
     struct ipv6_mreq mreq;
     memcpy(&mreq.ipv6mr_multiaddr, multicast_address, sizeof(struct in6_addr));
     mreq.ipv6mr_interface = 0; // Let the system choose the interface
@@ -276,7 +276,7 @@ void *listen_multicast_messages(void *arg) {
         return NULL;
     }
 
-    // Bind the socket to the multicast port
+
     struct sockaddr_in6 local_addr;
     memset(&local_addr,0,sizeof(local_addr));
     local_addr.sin6_family = AF_INET6;
@@ -289,14 +289,13 @@ void *listen_multicast_messages(void *arg) {
         return NULL;
     }
 
-    // Receive and process messages
+
     while(1){
-        char buffer[262];
+        char buffer[BUFSIZ];
         struct sockaddr_in6 src_addr;
         socklen_t addrlen=sizeof(src_addr);
 
-        ssize_t nbytes = recvfrom(sockfd,buffer,sizeof(buffer),0,
-                                (struct sockaddr *) &src_addr,&addrlen);
+        ssize_t nbytes = recvfrom(sockfd,buffer,sizeof(buffer),0,(struct sockaddr *) &src_addr,&addrlen);
         if(nbytes<0){
             perror("recvfrom");
             break;
@@ -336,7 +335,6 @@ void subscribe_to_fil(uint16_t fil_number) {
     testMalloc(server_msg);
     memset(server_msg,0,SERVER_SUBSCRIPTION_SIZE);
 
-    // ssize_t recu = recv(clientfd,server_msg,sizeof(char) * 22 ,0);
     ssize_t read = recv_bytes(clientfd,server_msg,SERVER_SUBSCRIPTION_SIZE);
     if(read < 0){
         perror("erreur lecture");
