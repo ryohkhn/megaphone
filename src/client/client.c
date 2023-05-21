@@ -734,7 +734,6 @@ void run(){
                 exit(0);
         }
 
-        printf("Connection closed with the server.\n");
         close(clientfd);
         free(response);
     }

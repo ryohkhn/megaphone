@@ -822,7 +822,6 @@ void *serve(void *arg){
 
 int main(int argc, char** argv){
     if(argc == 1){
-        server_addr = LOCAL_ADDR;
         server_port = PORT;
     }
     else if (argc != 2) {
