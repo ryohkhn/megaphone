@@ -364,7 +364,8 @@ void receive_file_udp(char * file_directory, int port, int fil, char * filename)
         if (bytes_read == 0) {
             printf("fin communication\n");
             break;
-        }else{
+        }
+        else{
             if (bytes_read == (size_t) -1) {
                 printf("Erreur lors de la réception des données\n");
                 if (errno == EWOULDBLOCK || errno == EAGAIN) {
@@ -375,9 +376,9 @@ void receive_file_udp(char * file_directory, int port, int fil, char * filename)
             }
         }
 
-        // on ouvre le FILE
-        printf("ouverture du file\n");
         if (file == NULL) {
+            // on ouvre le FILE
+            printf("ouverture du file\n");
             printf("1ere iter : on crée file_path et on ouvre le FILE\n");
             char file_path[512];
             snprintf(file_path, sizeof(file_path), "%s/%d_%s", file_directory, fil, filename);
@@ -401,51 +402,35 @@ void receive_file_udp(char * file_directory, int port, int fil, char * filename)
 
         printf("received_msg_udp->entete.val = %d\n",received_msg_udp->entete.val);
         printf("received_msg_udp->numbloc = %d\n",received_msg_udp->numbloc);
-        printf("received_msg_udp->data = %s\n",received_msg_udp->data);
+        // printf("received_msg_udp->data = %s\n",received_msg_udp->data);
 
         // gestion du cas de désordre des paquets et écriture dans le file
         printf("gestion de désordre dans les paquets et écriture dans le file\n");
         if (received_msg_udp->numbloc == packet_num + 1) {
-            printf("1\n");
             // si le paquet qui arrive est le bon (suivant le dernier écrit)
             // on l'écrit a sa destination
             fwrite(received_msg_udp->data, 1, sizeof(char) * bytes_read - sizeof(uint16_t) * 2, file);
             packet_num = received_msg_udp->numbloc;
-            printf("2\n");
-
 
             // Vérifier si les blocs suivants sont déjà dans le buffer
             while (packet_num + 1 < buffer_capacity && received_msgs_buffer[packet_num + 1] != NULL) {
-                printf("3\n");
                 packet_num = received_msgs_buffer[packet_num + 1]->numbloc;
                 // si le paquet suivant est deja dans notre buffer de stockage temporaire
                 // on l'écrit a sa destination
                 fwrite(received_msgs_buffer[packet_num]->data, 1, sizeof(char) * bytes_read - sizeof(uint16_t) * 2, file);
-                printf("4\n");
-
             }
-            printf("5\n");
-
-        } else {
-            printf("6\n");
-
+        }
+        else {
             // Si le bloc n'est pas le bloc attendu, stocker dans le tableau
             // Vérifier si la capacité du tableau doit être augmentée
             while (received_msg_udp->numbloc >= buffer_capacity) {
-                printf("7\n");
-
                 buffer_capacity *= 2; // Doubler la capacité
                 received_msgs_buffer = realloc(received_msgs_buffer, sizeof(message_udp *) * buffer_capacity);
                 testMalloc(received_msgs_buffer);
-                printf("8\n");
-
             }
-            printf("9\n");
 
             received_msgs_buffer[received_msg_udp->numbloc] = received_msg_udp;
             buffer_size = (received_msg_udp->numbloc > buffer_size) ? received_msg_udp->numbloc : buffer_size;
-            printf("10\n");
-
         }
 
         // on free
@@ -526,6 +511,10 @@ void send_file_udp(FILE * file, int port, client_message *msg, char * addr_IP) {
     message_udp * msg_udp = malloc(sizeof(message_udp));
     testMalloc(msg_udp);
 
+    struct timespec pause;
+    pause.tv_sec = 0;
+    pause.tv_nsec = 2000000;
+
     printf("\n\ndébut while\n");
     // boucle d'envoie au receveur en udp
     pthread_mutex_lock(&file_reader_mutex);
@@ -538,7 +527,7 @@ void send_file_udp(FILE * file, int port, client_message *msg, char * addr_IP) {
         memcpy(msg_udp->data, buffer, sizeof(char) * bytes_read);
         printf("msg_udp->entete = %d\n",msg_udp->entete.val);
         printf("msg_udp->numbloc = %d\n",msg_udp->numbloc);
-        printf("msg_udp->data = %s\n",msg_udp->data);
+        // printf("msg_udp->data = %s\n",msg_udp->data);
 
 
         // on serialize
@@ -552,6 +541,8 @@ void send_file_udp(FILE * file, int port, client_message *msg, char * addr_IP) {
 
         printf("Envoi du message UDP\n");
         ssize_t bytes_sent = sendto(sock_udp, serialize_buffer, serialize_buf_size, 0, (struct sockaddr *)&addr, len_addr);
+
+        nanosleep(&pause, NULL);
         printf("données envoyées = %zu\n", bytes_sent);
 
         packet_num += 1;

@@ -9,13 +9,13 @@ void print_prompt(){
 int handle_codereq_error(request_type codereq){
     switch(codereq){
         case NONEXISTENT_THREAD:
-            printf("Error: the thread you tried to post in doesn't exist.\n");
+            printf("Error: the thread doesn't exist.\n");
             return 0;
         case NONEXISTENT_ID:
             printf("Error: your ID doesn't exist on the server.\n");
             return 0;
         case ERROR:
-            printf("Error: Internal server error.\n");
+            printf("Error: internal server error.\n");
             return 0;
         case NONEXISTENT_FILE:
             printf("Error: the file you tried to download does not exist on the server.\n");
@@ -81,17 +81,17 @@ void send_message(res_inscription *i,char *data,int nbfil){
 
     msg->entete.val = create_entete(POST_MESSAGE,i->id)->val;
     msg->numfil = htons(nbfil);
+    msg->nb = 0;
     uint8_t datalen = strlen(data)+1;
-    msg->data = malloc(sizeof(uint8_t)*((datalen)+1));
-    testMalloc(data);
     msg->datalen = datalen;
+    msg->data = malloc(sizeof(uint8_t)*((datalen)));
+    testMalloc(data);
     memcpy(msg->data,data,sizeof(uint8_t)*(datalen));
 
     // Serialize the client_message structure and send to clientfd
     char *serialized_msg = client_message_to_string(msg);
 
-    // todo modifier datalen + 1 en datalen ? (puisque datalen = strlen(data) + 1)
-    size_t len = CLIENT_MESSAGE_SIZE + sizeof(char) * (msg->datalen + 1);
+    size_t len = CLIENT_MESSAGE_SIZE + DATALEN_SIZE + sizeof(char) * (msg->datalen);
     ssize_t ecrit = send(clientfd, serialized_msg, len, 0);
 
     if(ecrit<=0){
@@ -387,7 +387,7 @@ void download_file(int nbfil){
     msg->data = malloc(sizeof(char) * (datalen));
     testMalloc(msg->data);
     memcpy(msg->data, filename, sizeof(char) * (datalen));
-    msg->data[datalen] = '\0';
+    msg->data[datalen - 1] = '\0';
     printf("\n\nmsg->entete.val = %d\n", msg->entete.val);
     printf("msg->datalen = %d\n", datalen);
     printf("msg->data = %s\n", msg->data);
@@ -429,20 +429,10 @@ void download_file(int nbfil){
         goto error;
     }
 
-    for(int i = 0; i < 3; i++){
-        server_msg[i] = ntohs(server_msg[i]);
-    }
-
     request_type codereq = get_codereq_entete(server_msg[0]);
     if(!handle_codereq_error(codereq)){
         goto error;
     }
-
-    printf("message retour du serveur: \n");
-    printf("entete = %hu\n", server_msg[0]);
-    printf("nb fil = %hu\n", server_msg[1]);
-    printf("port = %hu\n", server_msg[2]);
-    printf("retour du serveur reçu\n");
 
     printf("\n\nappel boucle ecoute udp \n\n");
     // appelle a la boucle qui écoute le message en UDP
@@ -483,7 +473,8 @@ void add_file(int nbfil) {
         free(file_path);
         if (file == NULL) {
             printf("The file path is invalid.\n");
-        } else {
+        }
+        else {
             long size = size_file(file);
             if (size > size_max) {
                 printf("The file is too large.\n");
@@ -546,20 +537,18 @@ void add_file(int nbfil) {
         goto error;
     }
 
-    for(int i = 0; i < 3; i++){
-        server_msg[i] = ntohs(server_msg[i]);
-    }
-    printf(" CODEREQ + ID = %hu\n", server_msg[0]);
-    printf("NUMFIL = %hu\n", server_msg[1]);
-    printf("NB (port) = %hu\n", server_msg[2]);
-
-    close(clientfd);
-
     request_type codereq = get_codereq_entete(server_msg[0]);
     if(!handle_codereq_error(codereq)){
         goto error;
     }
 
+    for(int i = 0; i < 3; i++){
+        server_msg[i] = ntohs(server_msg[i]);
+    }
+
+    printf(" CODEREQ + ID = %hu\n", server_msg[0]);
+    printf("NUMFIL = %hu\n", server_msg[1]);
+    printf("NB (port) = %hu\n", server_msg[2]);
 
     printf("\n\nappel a boucle envoie udp\n");
     // appel a boucle envoie udp avec en argument ->
@@ -684,7 +673,7 @@ void run(){
         client();
 
         switch(choice){
-            case 1:
+            case REGISTER:
                 printf("Please enter your username:\n");
                 print_prompt();
                 scanf("%s",pseudo);
@@ -697,7 +686,7 @@ void run(){
                 user_id = res_ins->id;
                 printf("id: %d\n",res_ins->id);
                 break;
-            case 2:
+            case POST_MESSAGE:
                 printf("Please enter the thread (0 for a new thread):\n");
                 print_prompt();
                 scanf("%d",&nbfil);
@@ -719,7 +708,7 @@ void run(){
 
                 send_message(res_ins,response,nbfil);
                 break;
-            case 3:
+            case LIST_MESSAGES:
                 printf("Please enter the thread:\n");
                 print_prompt();
                 scanf("%d",&nbfil);
@@ -729,21 +718,21 @@ void run(){
 
                 request_n_tickets(res_ins,nbfil,n);
                 break;
-            case 4:
+            case SUBSCRIBE:
                 printf("Please enter the thread:\n");
                 print_prompt();
                 scanf("%d",&nbfil);
 
                 subscribe_to_fil(nbfil);
                 break;
-            case 5:
+            case UPLOAD_FILE:
                 printf("Please enter the thread:\n");
                 print_prompt();
                 scanf("%d",&nbfil);
 
                 add_file(nbfil);
                 break;
-            case 6:
+            case DOWNLOAD_FILE:
                 printf("Please enter the thread:\n");
                 print_prompt();
                 scanf("%d",&nbfil);

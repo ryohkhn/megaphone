@@ -578,7 +578,7 @@ void add_file(client_message *received_msg, int sock_client) {
     // on fait les vérifications de pour ajouter un billet à un fil
     pthread_mutex_lock(&fil_mutex);
     if (received_msg->numfil == 0) {
-        add_new_fil(pseudo_from_id(get_id_entete(received_msg->entete.val)));
+        add_new_fil(pseudo_from_id(received_msg->entete.val >> 5));
         received_msg->numfil = fils_size - 1;
         printf("Numfil trouvé vide, création d'un nouveau fil : %d\n", received_msg->numfil);
     }
@@ -774,9 +774,11 @@ void *serve(void *arg){
             memcpy(received_msg->data, buffer, sizeof(uint8_t)*datalen);
         }
 
+        uint16_t nb = ntohs(received_msg->nb);
+
         switch(codereq){
             case POST_MESSAGE:
-                if(received_msg->nb!=0)
+                if(nb!=0)
                     send_error_message(sock_client);
                 else
                     post_message(received_msg,sock_client);
@@ -792,18 +794,18 @@ void *serve(void *arg){
                 add_subscription_to_fil(received_msg,sock_client);
                 break;
             case UPLOAD_FILE:
-                if(received_msg->nb!=0)
+                if(nb!=0)
                     send_error_message(sock_client);
                 else
                     add_file(received_msg,sock_client);
                 break;
             case DOWNLOAD_FILE:
-                download_file(received_msg, sock_client, client_ip);
+                download_file(received_msg,sock_client,client_ip);
                 printf("on quitte le download file\n");
                 break;
             default:
                 perror("Server codereq selection");
-                // TODO send codereq 31
+                send_error_message(sock_client);
                 break;
         }
     }
