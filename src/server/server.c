@@ -37,7 +37,6 @@ void release_port(int port) {
 }
 
 void add_new_fil(char* originaire) {
-    pthread_mutex_lock(&fil_mutex);
     // If the list is full, reallocate memory to double the capacity
     if (fils_size == fils_capacity) {
         fils_capacity *= 2;
@@ -56,7 +55,6 @@ void add_new_fil(char* originaire) {
     (*(fils+fils_size)).addrmult = malloc(sizeof(char)*16);
     testMalloc((*(fils+fils_size)).addrmult);
     fils_size++;
-    pthread_mutex_unlock(&fil_mutex);
 }
 
 char *pseudo_from_id(int id){
@@ -106,7 +104,7 @@ void send_message(request_type codereq, uint16_t id, uint16_t nb, uint16_t numfi
     msg->nb = htons(nb);
 
     char* buffer = server_message_to_string(msg);
-    ssize_t nboctet = send(sock_client, buffer, sizeof(server_message), 0);
+    ssize_t nboctet = send(sock_client, buffer, SERVER_MESSAGE_SIZE, 0);
     if(nboctet <= 0) perror("send");
 }
 
@@ -160,7 +158,6 @@ void inscription_client(char * pseudo, int sock_client){
 }
 
 void add_message_to_fil(client_message *msg, uint16_t fil_number, int isFile) {
-    pthread_mutex_lock(&fil_mutex);
     fil* current_fil = &fils[fil_number];
     current_fil->nb_messages++;
 
@@ -178,7 +175,6 @@ void add_message_to_fil(client_message *msg, uint16_t fil_number, int isFile) {
 
     new_node->next = current_fil->head;
     current_fil->head = new_node;
-    pthread_mutex_unlock(&fil_mutex);
 }
 
 
@@ -209,18 +205,22 @@ void post_message(client_message *msg,int sock_client){
     uint16_t numfil=ntohs(msg->numfil);
     printf("Numfil reçu: %d\n",numfil);
 
+    pthread_mutex_lock(&fil_mutex);
     if(numfil==0){
         add_new_fil(pseudo_from_id(id));
         numfil=fils_size-1;
+        // pthread_mutex_unlock(&fil_mutex);
         printf("Numfil trouvé vide: %d\n",numfil);
     }
     else if(numfil>=fils_size){
         printf("Client tried to write to a nonexistent fil\n");
+        pthread_mutex_unlock(&fil_mutex);
         send_message(NONEXISTENT_FIL,0,0,0,sock_client);
         return;
     }
 
     add_message_to_fil(msg,numfil, 0);
+    pthread_mutex_unlock(&fil_mutex);
 
     //TEST print all messages in the fil after adding the new one
     char **res=retrieve_messages_from_fil(numfil);
@@ -349,6 +349,7 @@ void request_threads_list(client_message *msg, int sock_client){
         // If the asked fil does not exist the server sends a NONEXISTENT_FIL error
         pthread_mutex_lock(&fil_mutex);
         if(msg_numfil>=fils_size){
+            pthread_mutex_unlock(&fil_mutex);
             send_message(NONEXISTENT_FIL,0,0,0,sock_client);
             return;
         }
@@ -472,23 +473,23 @@ void add_subscription_to_fil(client_message *received_msg, int sock_client){
     pthread_mutex_lock(&fil_mutex);
     // Check if fil already has a multicast address
     if(numfil >= fils_size || numfil == 0){
-      printf("Client tried to subscribe to a nonexistent fil\n");
-      send_message(NONEXISTENT_FIL,0,0,0,sock_client);
-      server_subscription_message *msg=malloc(sizeof(server_subscription_message));
-      testMalloc(msg);
-      msg->entete.val=create_entete(NONEXISTENT_FIL,0)->val;
-      msg->addrmult=malloc(sizeof(uint8_t)*16);
-      testMalloc(msg->addrmult);
+        printf("Client tried to subscribe to a nonexistent fil\n");
+        send_message(NONEXISTENT_FIL,0,0,0,sock_client);
+        server_subscription_message *msg=malloc(sizeof(server_subscription_message));
+        testMalloc(msg);
+        msg->entete.val=create_entete(NONEXISTENT_FIL,0)->val;
+        msg->addrmult=malloc(sizeof(uint8_t)*16);
+        testMalloc(msg->addrmult);
 
-      // Serialize the server_subscription structure and send to clientfd
-      char *serialized_msg=server_subscription_message_to_string(msg);
-      size_t serialized_msg_size=sizeof(uint8_t)*22;
+        // Serialize the server_subscription structure and send to clientfd
+        char *serialized_msg=server_subscription_message_to_string(msg);
+        size_t serialized_msg_size=sizeof(uint8_t)*22;
 
-      ssize_t nboctet=send(sock_client,serialized_msg,serialized_msg_size,0);
-      printf("DEBUG SENT %zd OCTETS\n",nboctet);
-      if(nboctet<=0)perror("send");
-      pthread_mutex_unlock(&fil_mutex);
-      return;
+        ssize_t nboctet=send(sock_client,serialized_msg,serialized_msg_size,0);
+        printf("DEBUG SENT %zd OCTETS\n",nboctet);
+        if(nboctet<=0)perror("send");
+        pthread_mutex_unlock(&fil_mutex);
+        return;
     }
     if(strlen(fils[numfil].addrmult)>0){
         printf("Multicast for this fil is already initialised.\n");
@@ -565,8 +566,11 @@ void add_subscription_to_fil(client_message *received_msg, int sock_client){
 
 void download_file(client_message * received_msg, int sockclient) {
     // on fait les vérifications de pour ajouter un billet à un fil
+    // TODO NTOHS received_msg->numfil
+    pthread_mutex_lock(&fil_mutex);
     if (received_msg->numfil == 0 || received_msg->numfil >= fils_size) {
         printf("Client tried to read to a nonexistent fil\n");
+        pthread_mutex_unlock(&fil_mutex);
         send_message(NONEXISTENT_FIL,0,0,0,sockclient);
         return;
     }
@@ -607,13 +611,18 @@ void download_file(client_message * received_msg, int sockclient) {
 
 void add_file(client_message *received_msg, int sock_client) {
     printf("\n\ndébut add_file\n\n");
+    // TODO NTOHS received_msg->numfil
     // on fait les vérifications de pour ajouter un billet à un fil
+    pthread_mutex_lock(&fil_mutex);
     if (received_msg->numfil == 0) {
         add_new_fil(pseudo_from_id(get_id_entete(received_msg->entete.val)));
         received_msg->numfil = fils_size - 1;
+        pthread_mutex_unlock(&fil_mutex);
         printf("Numfil trouvé vide, création d'un nouveau fil : %d\n", received_msg->numfil);
-    } else if (received_msg->numfil >= fils_size) {
+    }
+    else if (received_msg->numfil >= fils_size) {
         printf("Client tried to write to a nonexistent fil\n");
+        pthread_mutex_unlock(&fil_mutex);
         send_message(NONEXISTENT_FIL,0,0,0,sock_client);
         return;
     }
@@ -638,8 +647,9 @@ void add_file(client_message *received_msg, int sock_client) {
 
     // on ajoute le fichier au fil
     printf("on ajoute le fichier au fil\n");
+    pthread_mutex_lock(&fil_mutex);
     add_message_to_fil(received_msg,received_msg->numfil, 1);
-
+    pthread_mutex_unlock(&fil_mutex);
 }
 
 int verify_user_id(uint16_t id){
@@ -660,6 +670,7 @@ void *serve(void *arg){
 
     // We first get the header sent by the client
     ssize_t read = recv_bytes(sock_client,buffer,HEADER_SIZE);
+    printf("Octets reçus: %zd\n",read);
     if(read<0){
         perror("recv server first header");
         exit(1);
@@ -707,6 +718,7 @@ void *serve(void *arg){
         ssize_t len = CLIENT_MESSAGE_SIZE + DATALEN_SIZE - HEADER_SIZE;
         buffer = malloc(len);
         read = recv_bytes(sock_client,buffer,len);
+        printf("Octets reçus: %zd\n",read);
         if(read<0){
             perror("recv client message in server");
             exit(1);
@@ -723,6 +735,7 @@ void *serve(void *arg){
         if(datalen != 0){
             buffer = malloc(sizeof(char)*datalen);
             read = recv_bytes(sock_client,buffer,datalen);
+            printf("Octets reçus: %zd\n",read);
             if(read<0){
                 perror("recv data from client");
                 exit(1);
@@ -763,6 +776,7 @@ void *serve(void *arg){
                 break;
             case DOWNLOAD_FILE:
                 download_file(received_msg, sock_client);
+                printf("on quite le download file\n");
                 break;
             default:
                 perror("Server codereq selection");
