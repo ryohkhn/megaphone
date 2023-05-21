@@ -11,7 +11,7 @@
 
 // Maximum number of fils possible (2^16 - 1)
 #define MAX_FIL 65536
-#define PORT 7779
+#define PORT 7777
 #define LOCAL_ADDR "::"
 #define MULTICAST_BASE_ADDRESS "ff02::1:1"
 #define directory_for_files "fichiers_fil"

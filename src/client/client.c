@@ -411,6 +411,7 @@ void download_file(int nbfil){
 
     char *serialized_msg = client_message_to_string(msg);
 
+    printf("sending the client message to server\n");
     ssize_t ecrit = send(clientfd, serialized_msg,
                          CLIENT_MESSAGE_SIZE + DATALEN_SIZE + sizeof(char) * (msg->datalen), 0);
 
@@ -494,8 +495,6 @@ void add_file(int nbfil) {
             break;
         }
     }
-
-    printf("we ask for the name of the file.\n");
     char *filename = malloc(sizeof(char) * 512);
     testMalloc(filename);
     while(1){
@@ -504,7 +503,6 @@ void add_file(int nbfil) {
         if(is_valid_filename(filename)) break;
         printf("File name invalid\n");
     }
-
 
     // we build and send the message to the server
     uint8_t datalen = strlen(filename) + 1; // + 1 pour le '\0'
@@ -541,20 +539,16 @@ void add_file(int nbfil) {
         printf("server off\n");
         goto error;
     }
-
     // codereq check
     request_type codereq = get_codereq_entete(server_msg[0]);
     if(!handle_codereq_error(codereq)){
         goto error;
     }
-
     for(int i = 0; i < 3; i++){
         server_msg[i] = ntohs(server_msg[i]);
     }
-
     // we call the function that sends the file in udp
     send_file_udp(file,server_msg[2], msg, server_addr);
-
 
     free(filename);
     free(serialized_msg);
@@ -569,7 +563,6 @@ void add_file(int nbfil) {
     free(filename);
     free(serialized_msg);
     fclose(file);
-
 }
 
 void client(){

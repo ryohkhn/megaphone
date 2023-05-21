@@ -4,7 +4,7 @@
 #include <sys/stat.h>
 
 #define directory_for_files "downloaded_files"
-#define PORT 7778
+#define PORT 7777
 #define LOCAL_ADDR "::1"
 
 int clientfd;
