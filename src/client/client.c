@@ -378,51 +378,41 @@ void subscribe_to_thread(uint16_t thread_number) {
     }
 }
 
+/**
+ * The client download one of the files on a thread.
+ * @param nbfil thread where the message is
+ */
 void download_file(int nbfil){
-    printf("Création du premier message du client au serveur\n");
-
-    // on crée le message du client au serveur
+    printf("Creation of the first message from client to server\n");
+    // create the message from the client to the server
     client_message *msg = malloc(sizeof(client_message));
     int port = allocate_port();
     msg->entete.val = create_entete(DOWNLOAD_FILE, user_id)->val;
     msg->nb = htons(port);
     msg->numfil = htons(nbfil);
 
-    // on récupère le nom du fichier
-    printf("Récupération du nom du fichier\n");
+    // we get the name of the file
     char *filename = malloc(sizeof(char) * 512);
     testMalloc(filename);
     while(1){
-        // on récupère le nom du fichier
         printf("Please enter the name of the file (<512 characters) : ");
         scanf("%s", filename);
         if(is_valid_filename(filename)) break;
         printf("File name invalid\n");
     }
 
-    // on finit de remplir le message du client au serveur
+    // we build and send the message to the server
     uint8_t datalen = strlen(filename) + 1; // + 1 pour le '\0'
     msg->datalen = datalen;
     msg->data = malloc(sizeof(char) * (datalen));
     testMalloc(msg->data);
     memcpy(msg->data, filename, sizeof(char) * (datalen));
     msg->data[datalen - 1] = '\0';
-    printf("\n\nmsg->entete.val = %d\n", msg->entete.val);
-    printf("msg->datalen = %d\n", datalen);
-    printf("msg->data = %s\n", msg->data);
 
-
-
-    // on envoie le message au serveur
     char *serialized_msg = client_message_to_string(msg);
-    printf("\nserialization validée \n");
 
-
-    printf("\n\nEnvoi du premier message au serveur\n");
     ssize_t ecrit = send(clientfd, serialized_msg,
                          CLIENT_MESSAGE_SIZE + DATALEN_SIZE + sizeof(char) * (msg->datalen), 0);
-    printf("données envoyées lors du premier message = %zu\n",ecrit);
-
 
     //free
     free(serialized_msg);
@@ -430,35 +420,33 @@ void download_file(int nbfil){
     free(msg);
 
     if (ecrit <= 0) {
-        perror("Erreur ecriture");
+        perror("writing error");
         goto error;
     }
 
-    // reception du message serveur retour (en TCP)
-    printf("\n\nRéception du message du serveur\n");
+    // reception of the return server message (in TCP)
+    printf("\nReceive server message\n");
     uint16_t server_msg[3];
     ssize_t recu = recv_bytes(clientfd,(char*) server_msg, SERVER_MESSAGE_SIZE);
 
     if (recu == (size_t) -1) {
-        perror("erreur lecture");
+        perror("reading error");
         goto error;
     }
     if (recu == 0) {
-        printf("serveur off\n");
+        printf("server off\n");
         goto error;
     }
 
+    // codereq check
     request_type codereq = get_codereq_entete(server_msg[0]);
     if(!handle_codereq_error(codereq)){
         goto error;
     }
 
-    printf("\n\nappel boucle ecoute udp \n\n");
-    // appelle a la boucle qui écoute le message en UDP
-    // arguments -> dossier ou download, la socket udp, le port, le nom du fichier a download
+    // call the function that listens to the message in UDP
     receive_file_udp("downloaded_files", port, nbfil, filename);
 
-    // free et nettoyage
     free(filename);
     release_port(port);
     return;
@@ -469,9 +457,12 @@ void download_file(int nbfil){
 
 }
 
+/**
+ * The client post one of his files on a thread.
+ * @param nbfil thread where the message is added
+ */
 void add_file(int nbfil) {
-    printf("Création du message du client au serveur\n");
-    // on crée le message du client au serveur
+    // we create the message from the client to the server
     client_message *msg = malloc(sizeof(client_message));
     testMalloc(msg);
 
@@ -479,8 +470,8 @@ void add_file(int nbfil) {
     msg->nb = htons(0);
     msg->numfil = htons(nbfil);
 
-    printf("Ouverture et vérification du fichier\n");
-    // on ouvre le fichier pour vérifier qu'il existe
+    printf("Open and check the file\n");
+    // we open the file to check that it exists
     FILE *file = NULL;
     long size_max = 1L << 25; // 2^25 octets
     while (1) {
@@ -504,11 +495,10 @@ void add_file(int nbfil) {
         }
     }
 
-    printf("Récupération du nom du fichier\n");
+    printf("we ask for the name of the file.\n");
     char *filename = malloc(sizeof(char) * 512);
     testMalloc(filename);
     while(1){
-        // on récupère le nom du fichier
         printf("Please enter the name of the file (<512 characters) : ");
         scanf("%s", filename);
         if(is_valid_filename(filename)) break;
@@ -516,46 +506,43 @@ void add_file(int nbfil) {
     }
 
 
+    // we build and send the message to the server
     uint8_t datalen = strlen(filename) + 1; // + 1 pour le '\0'
     msg->datalen = datalen;
     msg->data = malloc(sizeof(char) * (datalen));
     testMalloc(msg->data);
     memcpy(msg->data, filename, sizeof(char) * (datalen));
     msg->data[datalen - 1] = '\0';
-    printf("msg->entete.val = %d\n", msg->entete.val);
-    printf("datalen = %d\n", datalen);
-    printf("msg->data = %s\n", msg->data);
 
     char *serialized_msg = client_message_to_string(msg);
-    printf("serialization validée \n");
 
-    printf("Envoi du message au serveur\n");
+    printf("Send message to server\n");
     ssize_t ecrit = send(clientfd, serialized_msg, CLIENT_MESSAGE_SIZE + DATALEN_SIZE + sizeof(char) * (msg->datalen), 0);
 
     if (ecrit == (size_t) -1) {
-        perror("Erreur ecriture");
+        perror("writing error");
         goto error;
     }
     if (ecrit == 0) {
-        printf("serveur off\n");
+        printf("server off\n");
         goto error;
     }
 
-    printf("Réception du message du serveur\n");
-    // reception du message serveur
+    printf("Receipt of server message\n");
+    // receive the server message
     uint16_t server_msg[3];
     ssize_t recu = recv_bytes(clientfd,(char*)server_msg, SERVER_MESSAGE_SIZE);
 
-    printf("retour du serveur reçu\n");
     if (recu == (size_t) -1) {
-        perror("erreur lecture");
+        perror("reading error");
         goto error;
     }
     if (recu == 0) {
-        printf("serveur off\n");
+        printf("server off\n");
         goto error;
     }
 
+    // codereq check
     request_type codereq = get_codereq_entete(server_msg[0]);
     if(!handle_codereq_error(codereq)){
         goto error;
@@ -565,16 +552,10 @@ void add_file(int nbfil) {
         server_msg[i] = ntohs(server_msg[i]);
     }
 
-    printf(" CODEREQ + ID = %hu\n", server_msg[0]);
-    printf("NUMFIL = %hu\n", server_msg[1]);
-    printf("NB (port) = %hu\n", server_msg[2]);
-
-    printf("\n\nappel a boucle envoie udp\n");
-    // appel a boucle envoie udp avec en argument ->
-    // le FILE, le port, le message du client (UNIQUEMENT pour l'entete)
+    // we call the function that sends the file in udp
     send_file_udp(file,server_msg[2], msg, server_addr);
 
-    // nettoyage et free
+
     free(filename);
     free(serialized_msg);
     free(msg->data);

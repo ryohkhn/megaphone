@@ -1,4 +1,3 @@
-
 #include "../../include/server.h"
 
 /**
@@ -33,6 +32,7 @@ void initialize_ports() {
 }
 
 /**
+<<<<<<< HEAD
  * This function releases a port back into the list of available ports.
  * @param port The port to be released.
  */
@@ -595,27 +595,22 @@ void add_subscription_to_thread(client_message *received_msg, int sock_client){
     if(nboctet<=0)perror("send");
 }
 
+/**
+ * Adds a file to a thread and stores it in a folder.
+ * @param received_msg received message from client
+ * @param sock_client
+ */
 void add_file(client_message *received_msg, int sock_client) {
-    printf("\n\ndébut add_file\n\n");
-    printf("received_msg->entete.val = %d\n", received_msg->entete.val);
-    printf("received_msg->nb = %d\n", received_msg->nb);
-    printf("received_msg->numfil = %d\n", received_msg->numfil);
-    printf("received_msg->datalen = %d\n",received_msg->datalen);
-    printf("received_msg->data = %s\n", received_msg->data);
     received_msg->entete.val = ntohs(received_msg->entete.val);
     received_msg->numfil = ntohs(received_msg->numfil);
     received_msg->nb = ntohs(received_msg->nb);
-    printf("\napres ntohs() :\n");
-    printf("received_msg->numfil = %d\n", received_msg->numfil);
-    printf("received_msg->datalen = %d\n",received_msg->datalen);
-    printf("received_msg->data = %s\n", received_msg->data);
 
-    // on fait les vérifications de pour ajouter un billet à un fil
+    // we make the verifications of to add a post to a thread
     pthread_mutex_lock(&fil_mutex);
     if (received_msg->numfil == 0) {
         add_new_fil(pseudo_from_id(received_msg->entete.val >> 5));
         received_msg->numfil = fils_size - 1;
-        printf("Numfil trouvé vide, création d'un nouveau fil : %d\n", received_msg->numfil);
+        printf("Numfil found empty, create a new thread : %d\n", received_msg->numfil);
     }
     else if (received_msg->numfil >= fils_size) {
         printf("Client tried to write to a nonexistent fil\n");
@@ -625,87 +620,67 @@ void add_file(client_message *received_msg, int sock_client) {
     }
     pthread_mutex_unlock(&fil_mutex);
 
-    printf("allocate port\n");
     int port = allocate_port();
 
-    printf("Envoi du message avec le port au client\n");
-    // envoie message avec le port au client
+    // send message with port to client
     send_message(UPLOAD_FILE, received_msg->entete.val >> 5, port, received_msg->numfil, sock_client);
 
-    // on reçoit et on écrit le fichier
+    // we receive and write the file
     receive_file_udp(directory_for_files, port, received_msg->numfil, (char *)received_msg->data);
-
-    printf("fin while, release_port, fclose, close\n");
 
     release_port(port);
 
-    // on ajoute le fichier au fil
-    printf("on ajoute le fichier au fil\n");
+    // we add the file to the thread
     pthread_mutex_lock(&fil_mutex);
     add_message_to_fil(received_msg,received_msg->numfil, 1);
     pthread_mutex_unlock(&fil_mutex);
 }
 
+/**
+ * The customer downloads a file that has been posted.
+ * @param received_msg received message from client
+ * @param sockclient
+ * @param client_IP
+ */
 void download_file(client_message *received_msg, int sockclient, char * client_IP) {
-    printf("message initial\n");
-    printf("received_msg->entete.val = %d\n", received_msg->entete.val);
-    printf("received_msg->nb = %d\n",received_msg->nb);
-    printf("received_msg->numfil = %d\n",received_msg->numfil);
-    printf("received_msg->datalen = %d\n",received_msg->datalen);
-    printf("received_msg->data = %s\n", received_msg->data);
     received_msg->numfil = ntohs(received_msg->numfil);
     received_msg->nb = ntohs(received_msg->nb);
     received_msg->entete.val = ntohs(received_msg->entete.val);
-    printf("\napres ntohs() :\n");
-    printf("received_msg->numfil = %d\n", received_msg->numfil);
-    printf("received_msg->datalen = %d\n",received_msg->datalen);
-    printf("received_msg->data = %s\n", received_msg->data);
 
-    // on fait les vérifications de pour ajouter un billet à un fil
+    // we do the checks to add a post to a thread
     pthread_mutex_lock(&fil_mutex);
     if (received_msg->numfil == 0 || received_msg->numfil >= fils_size) {
-        printf("error 1\n");
         printf("Client tried to read to a nonexistent fil\n");
         pthread_mutex_unlock(&fil_mutex);
         send_message(NONEXISTENT_THREAD,0,0,0,sockclient);
         return;
     }
     pthread_mutex_unlock(&fil_mutex);
-    printf("downloaded_files\n");
-    printf("\n\nenvoie 1ere réponse au client:\n");
-    printf("received_msg->entete.val = %d\n", received_msg->entete.val);
-    printf("received_msg->nb = %d\n",received_msg->nb);
-    printf("received_msg->numfil = %d\n",received_msg->numfil);
 
-    printf("\n\n on ouvre le fichier demandé\n");
-    //on ouvre le fichier demandé (stocké dans fichiers_fil)
+
+    // open the requested file
     char file_path[512];
     snprintf(file_path, sizeof(file_path), "%s/%d_%s", directory_for_files, received_msg->numfil, received_msg->data);
-    printf("file_path = %s\n", file_path);
     if(access(file_path, F_OK) != 0) {   // F_OK vérifie l'existence du fichier
-        printf("Le fichier n'existe pas.\n");
+        printf("The file does not exist.\n");
         send_message(NONEXISTENT_FILE,(received_msg->entete.val)>>5, received_msg->nb, received_msg->numfil, sockclient);
         return;
     }
 
-    // réponse du serveur avec CODEREQ, ID et NUMFIL et NB ayant chacun la même valeur que dans
-    // la requête du client pour signifier qu’il accepte la requête et va procéder au transfert.
+    // server response with CODEREQ, ID and NUMFIL and NB each having the same value as in
+    // the client's request to indicate that it accepts the request and will proceed with the transfer.
     send_message(DOWNLOAD_FILE,(received_msg->entete.val)>>5, received_msg->nb, received_msg->numfil, sockclient);
 
     FILE * file = fopen(file_path, "r");
     if (file == NULL) {
-        perror("Erreur d'ouverture du fichier");
+        perror("Error opening file");
         return;
     }
 
-    printf("\n\nappel boucle envoie udp \n\n");
-    // appelle a la boucle qui envoie le message en UDP
-    // arguments -> le FILE, le port, le message du client initial (pour l'entete UNIQUEMENT)
+    // calls the loop that sends the message in UDP
     send_file_udp(file,received_msg->nb, received_msg, client_IP);
 
-    // nettoyage et free
     fclose(file);
-    printf("\n\nfin download_files\n");
 }
 
 int verify_user_id(uint16_t id){

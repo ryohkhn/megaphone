@@ -284,58 +284,57 @@ void print_array(int *array, int size) {
     printf("]\n");
 }
 
+/**
+ * function that receive the file in UDP.
+ * @param file_directory file where the file is wrote
+ * @param port listening port
+ * @param fil thread where the file is
+ * @param filename file name
+ */
 void receive_file_udp(char * file_directory, int port, int fil, char * filename){
-    printf("\n\nboucle ecoute udp\n\n");
-    printf("file_directory = %s\n",file_directory);
-    printf("filename = %s\n",filename);
-    printf("port = %d\n",port);
-    printf("fil = %d\n",fil);
 
-    printf("Création du socket UDP\n");
+    printf("\nBuilding the UDP socket\n");
     // socket UDP
     int sock_udp = socket(PF_INET6, SOCK_DGRAM, 0);
     if (sock_udp < 0) {
         perror("socket UDP");
+        return;
     }
 
-    printf("Configuration du délai d'attente\n");
-    // on définit le délai d'attente de recvfrom à 30 secondes
+    printf("Timeout configuration\n");
+    // set the timeout for recvfrom to 30 seconds
     struct timeval timeout;
     timeout.tv_sec = 30;
     timeout.tv_usec = 0;
 
-    printf("setsockopt\n");
     if (setsockopt(sock_udp, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0) {
-        perror("Erreur lors de la définition du délai d'attente");
+        perror("Error while setting timeout");
         return;
     }
     int off = 0;
     if (setsockopt(sock_udp, IPPROTO_IPV6, IPV6_V6ONLY, (char *)&off, sizeof(off)) < 0) {
-        perror("Erreur lors de la définition de l'option IPV6_V6ONLY");
+        perror("Error setting IPV6_V6ONLY option");
         return;
     }
 
-    // configuration de l'adresse du receveur
-    printf("Configuration de l'adresse du receveur\n");
-
+    // configuration of the receiver's address
+    printf("Configuration of the receiver address\n");
     struct sockaddr_in6 addr_receveur;
     memset(&addr_receveur, 0, sizeof(addr_receveur));
     addr_receveur.sin6_family = AF_INET6;
     addr_receveur.sin6_addr = in6addr_any;
     addr_receveur.sin6_port = htons(port);
 
-    // bind de l'adresse et de la socket
-    printf("bind socket udp avec option temps avec addr_receveur\n");
+    // bind address and socket
     if (bind(sock_udp, (struct sockaddr *)&addr_receveur, sizeof(addr_receveur)) < 0) {
         perror("bind UDP");
     }
 
-
-    // obtenue avec recvfrom(......, &addr_envoyeur,....)
+    // sender's address
     struct sockaddr_in6 addr_envoyeur;
     socklen_t addr_len = sizeof(addr_envoyeur);
 
-    // initialisation des variables
+    // initialization of variables
     char recv_buffer[516];
     memset(recv_buffer, 0, sizeof(char) * 516);
     int packet_num = -1;
@@ -343,30 +342,27 @@ void receive_file_udp(char * file_directory, int port, int fil, char * filename)
     FILE *file = NULL;
     message_udp ** received_msgs_buffer;
     int buffer_size = 0;
-    int buffer_capacity = 4; // Taille initiale
+    int buffer_capacity = 4; // Initial size
 
     received_msgs_buffer = calloc( buffer_capacity, sizeof(message_udp *));
     testMalloc(received_msgs_buffer);
-    printf("on écoute sur :\n");
-    printf("sock = %d\n", sock_udp);
-    printf("\n\ndébut boucle do while\n\n");
-    // boucle pour écouter les messages en udp
+    // loop to listen to messages in udp
     while(1){
-        printf("Attente de données\n");
-        // on écoute
+        printf("Waiting for data\n");
+        // listening...
         bytes_read = recvfrom(sock_udp, recv_buffer, sizeof(char) * 512 + sizeof(u_int16_t) * 2, 0, (struct sockaddr *)&addr_envoyeur, &addr_len);
-        printf("Données reçues : %zu\n", bytes_read);
+        printf("Received data : %zu\n", bytes_read);
 
-        // on vérifie que recvfrom a timeout / la transmission est finie
+        // we check that recvfrom has timeout / the transmission is finished
         if (bytes_read == 0) {
-            printf("fin communication\n");
+            printf("end transmission\n");
             break;
         }
         else{
             if (bytes_read == (size_t) -1) {
-                printf("Erreur lors de la réception des données\n");
+                printf("Error when receiving data\n");
                 if (errno == EWOULDBLOCK || errno == EAGAIN) {
-                    printf("recvfrom a expiré après 30 secondes\n");
+                    printf("recvfrom expired after 30 seconds\n");
                 }
                 perror("recvfrom");
                 break;
@@ -374,21 +370,17 @@ void receive_file_udp(char * file_directory, int port, int fil, char * filename)
         }
 
         if (file == NULL) {
-            // on ouvre le FILE
-            printf("ouverture du file\n");
-            printf("1ere iter : on crée file_path et on ouvre le FILE\n");
+            // opening the file
             char file_path[512];
             snprintf(file_path, sizeof(file_path), "%s/%d_%s", file_directory, fil, filename);
-            printf("file_path = %s\n", file_path);
             file = fopen(file_path, "w");
             if (file == NULL) {
-                perror("Erreur d'ouverture du fichier");
+                perror("Error opening the file");
                 break;
             }
         }
 
-        // on deserialize
-        printf("on deserialize\n");
+        // de-serializing
         message_udp *received_msg_udp = malloc(sizeof(message_udp));
         testMalloc(received_msg_udp);
         memcpy(&(received_msg_udp->entete.val), recv_buffer, sizeof(uint16_t));
@@ -397,110 +389,88 @@ void receive_file_udp(char * file_directory, int port, int fil, char * filename)
         testMalloc(received_msg_udp->data);
         memcpy(received_msg_udp->data, recv_buffer + sizeof(uint16_t) * 2, sizeof(char) * bytes_read - sizeof(uint16_t) * 2);
 
-        printf("received_msg_udp->entete.val = %d\n",received_msg_udp->entete.val);
-        printf("received_msg_udp->numbloc = %d\n",received_msg_udp->numbloc);
-        // printf("received_msg_udp->data = %s\n",received_msg_udp->data);
-
-        // gestion du cas de désordre des paquets et écriture dans le file
-        printf("gestion de désordre dans les paquets et écriture dans le file\n");
+        // management of the case of disorder in the packages and writing in the file
+        printf("management of disorder in the packets and writing in the file");
         if (received_msg_udp->numbloc == packet_num + 1) {
-            // si le paquet qui arrive est le bon (suivant le dernier écrit)
-            // on l'écrit a sa destination
+            // if the packet that arrives is the right one (following the last one written)
+            // we write it to its destination
             fwrite(received_msg_udp->data, 1, sizeof(char) * bytes_read - sizeof(uint16_t) * 2, file);
             packet_num = received_msg_udp->numbloc;
 
-            // Vérifier si les blocs suivants sont déjà dans le buffer
+            // Check if the following blocks are already in the buffer
             while (packet_num + 1 < buffer_capacity && received_msgs_buffer[packet_num + 1] != NULL) {
                 packet_num = received_msgs_buffer[packet_num + 1]->numbloc;
-                // si le paquet suivant est deja dans notre buffer de stockage temporaire
-                // on l'écrit a sa destination
+                // if the following package is already in our temporary storage buffer
+                // we write it to its destination
                 fwrite(received_msgs_buffer[packet_num]->data, 1, sizeof(char) * bytes_read - sizeof(uint16_t) * 2, file);
             }
-        }
-        else {
-            // Si le bloc n'est pas le bloc attendu, stocker dans le tableau
-            // Vérifier si la capacité du tableau doit être augmentée
+        } else {
+            // If the block is not the expected one, store in the array
+            // Check if the capacity of the array should be increased
             while (received_msg_udp->numbloc >= buffer_capacity) {
                 buffer_capacity *= 2; // Doubler la capacité
                 received_msgs_buffer = realloc(received_msgs_buffer, sizeof(message_udp *) * buffer_capacity);
                 testMalloc(received_msgs_buffer);
             }
-
             received_msgs_buffer[received_msg_udp->numbloc] = received_msg_udp;
             buffer_size = (received_msg_udp->numbloc > buffer_size) ? received_msg_udp->numbloc : buffer_size;
         }
 
-        // on free
+        // free
         free(received_msg_udp->data);
         free(received_msg_udp);
 
-        // si dernier paquet udp, on break
+        // if last udp package, we break
         if(bytes_read < sizeof(char) * 512 + sizeof(u_int16_t) * 2){
             break;
         }
 
     }
-    printf("\nfin de while\n");
-    // on close le fichier
+    // close
     if (file != NULL) {
         fclose(file);
     }
-    printf("on free les pointeurs\n");
-    // on free les pointeurs
-    for (int i = 0; i <= buffer_size; i++) {
-        if (received_msgs_buffer[i] != NULL) {
-            //free(received_msgs_buffer[i]->data);
-            //free(received_msgs_buffer[i]);
-        }
-    }
-    printf("close socket et received_msgs_buffer\n");
     free(received_msgs_buffer);
     close(sock_udp);
-    printf("\nfin de fonction\n");
-
 }
 
+/**
+ * function that send the file in UDP
+ * @param file the file which is sent
+ * @param port listening port
+ * @param msg client message
+ * @param addr_IP IP adress
+ */
 void send_file_udp(FILE * file, int port, client_message *msg, char * addr_IP) {
-    printf("\n\nboucle envoie udp\n\n");
-    printf("FILE = %p\n", file);
-    printf("port = %d\n", port);
-    printf("msg->entete.val = %d\n", msg->entete.val);
-    printf("msg->nb = %d\n", msg->nb);
-    printf("msg->numfil = %d\n", msg->numfil);
-    printf("msg->datalen = %d\n",msg->datalen);
-    printf("msg->data = %s\n", msg->data);
-    printf("\n\nCréation et configuration du socket UDP\n");
-    // Création du socket UDP
+
+    // creating UDP socket
     int sock_udp = socket(AF_INET6, SOCK_DGRAM, 0);
     if (sock_udp < 0) {
-        perror("Erreur de création du socket");
+        perror("Socket creation error");
         return;
     }
 
     int off = 0;
     if (setsockopt(sock_udp, IPPROTO_IPV6, IPV6_V6ONLY, &off, sizeof(off)) < 0) {
-        perror("Erreur de désactivation de IPV6_V6ONLY");
+        perror("IPV6_V6ONLY disabling error");
         close(sock_udp);
         return;
     }
 
-    // Configuration de l'adresse du receveur
-    printf("configuration adresse du receveur\n");
+    // Configuration of the receiver address
+    printf("receiver address configuration\n");
     struct sockaddr_in6 addr;
     memset(&addr, 0, sizeof(addr));
     addr.sin6_family = AF_INET6;
     addr.sin6_port = htons(port);
-    printf("adresse IP = %s\n", addr_IP);
     if (inet_pton(AF_INET6, addr_IP, &addr.sin6_addr) <= 0) {
-        perror("Erreur lors de la conversion de l'adresse IP");
+        perror("Error while converting the IP address");
         close(sock_udp);
         return;
     }
     socklen_t len_addr = sizeof(addr);
 
-    printf("Envoi du fichier au serveur via UDP\n");
-    printf("on écoute sur :\n");
-    printf("sock = %d\n", sock_udp);
+    // initialization of variables
     char buffer[512];
     int packet_num = 0;
     size_t bytes_read;
@@ -512,22 +482,16 @@ void send_file_udp(FILE * file, int port, client_message *msg, char * addr_IP) {
     pause.tv_sec = 0;
     pause.tv_nsec = 2000000;
 
-    printf("\n\ndébut while\n");
-    // boucle d'envoie au receveur en udp
+    // send loop to receiver in udp
     while ((bytes_read = fread(buffer, 1, 512, file)) > 0) {
-        printf("Préparation du message UDP\n");
+        printf("\nPreparation of the UDP message\n");
         msg_udp->entete = msg->entete;
         msg_udp->numbloc = packet_num;
         msg_udp->data = malloc(sizeof(char) * bytes_read);
         testMalloc(msg_udp->data);
         memcpy(msg_udp->data, buffer, sizeof(char) * bytes_read);
-        printf("msg_udp->entete = %d\n",msg_udp->entete.val);
-        printf("msg_udp->numbloc = %d\n",msg_udp->numbloc);
-        // printf("msg_udp->data = %s\n",msg_udp->data);
 
-
-        // on serialize
-        printf("\n on serialize\n");
+        // we serialize
         size_t serialize_buf_size = sizeof(char) * bytes_read + sizeof(uint16_t) * 2;
         char *serialize_buffer = malloc(serialize_buf_size);
         testMalloc(serialize_buffer);
@@ -535,29 +499,22 @@ void send_file_udp(FILE * file, int port, client_message *msg, char * addr_IP) {
         memcpy(serialize_buffer + sizeof(uint16_t), &(msg_udp->numbloc), sizeof(uint16_t));
         memcpy(serialize_buffer + sizeof(uint16_t) * 2, msg_udp->data, bytes_read);
 
-        printf("Envoi du message UDP\n");
+        printf("Sending the UDP message\n");
         ssize_t bytes_sent = sendto(sock_udp, serialize_buffer, serialize_buf_size, 0, (struct sockaddr *)&addr, len_addr);
 
         nanosleep(&pause, NULL);
-        printf("données envoyées = %zu\n", bytes_sent);
+        printf("sent data = %zu\n", bytes_sent);
 
         packet_num += 1;
-
-        // les free
         free(serialize_buffer);
         free(msg_udp->data);
-
-
         if (bytes_sent < 0) {
-            perror("Erreur lors de l'envoi des données");
+            perror("Error when sending data");
             break;
         }
     }
-
-    printf("\nNettoyage et fermeture du fichier\n");
     free(msg_udp);
     close(sock_udp);
-    printf("\nfin de fonction\n");
 }
 
 ssize_t recv_bytes(int sockfd, char *buf, ssize_t len){
