@@ -1,7 +1,9 @@
 
 #include "../../include/server.h"
 
-// Fonction pour initialiser la liste des ports disponibles
+/**
+ * This function initializes an array of available ports.
+ */
 void initialize_ports() {
     available_ports = malloc(sizeof(int) * PORT_RANGE);
     testMalloc(available_ports);
@@ -11,8 +13,11 @@ void initialize_ports() {
     printf("ports initialisés\n");
 }
 
-// Fonction pour allouer un port
-uint16_t allocate_port() {
+/**
+ * This function allocates a port from the list of available ports.
+ * @return The allocated port number.
+ */
+ uint16_t allocate_port() {
     int allocated_port = -1;
     pthread_mutex_lock(&port_mutex);
     for (int i = 0; i < PORT_RANGE; i++) {
@@ -27,8 +32,11 @@ uint16_t allocate_port() {
     return allocated_port;
 }
 
-// Fonction pour libérer un port
-void release_port(int port) {
+/**
+ * This function releases a port back into the list of available ports.
+ * @param port The port to be released.
+ */
+ void release_port(int port) {
     if (port >= MIN_PORT && port <= MAX_PORT) {
         pthread_mutex_lock(&port_mutex);
         available_ports[port - MIN_PORT] = port;
@@ -36,6 +44,11 @@ void release_port(int port) {
     }
 }
 
+/**
+ * This function adds a new thread into the global list of threads,
+ * dynamically resizing the array as necessary.
+ * @param originaire The originaire of the new thread.
+ */
 void add_new_fil(char* originaire) {
     // If the list is full, reallocate memory to double the capacity
     if (fils_size == fils_capacity) {
@@ -57,6 +70,11 @@ void add_new_fil(char* originaire) {
     fils_size++;
 }
 
+/**
+ * This function retrieves the pseudo of a client from their ID.
+ * @param id The ID of the client.
+ * @return The pseudo of the client.
+ */
 char *pseudo_from_id(int id){
     list_client *current_client=clients;
     char *pseudo="##########";
@@ -73,6 +91,12 @@ char *pseudo_from_id(int id){
     }
 }
 
+/**
+ * This function serializes a message into a notification format, including the pseudo of the sender and the content of the message.
+ * @param msg The message to serialize.
+ * @param numfil The thread number.
+ * @return A pointer to the serialized message.
+ */
 char *message_to_notification(message *msg,uint16_t numfil){
     size_t buffer_size = NOTIFICATION_SIZE;
     char *buffer = malloc(buffer_size);
@@ -95,6 +119,14 @@ char *message_to_notification(message *msg,uint16_t numfil){
     return buffer;
 }
 
+/**
+ * This function sends a message to a client.
+ * @param codereq The request type.
+ * @param id The ID of the client.
+ * @param nb
+ * @param numfil The thread number.
+ * @param sock_client The client's socket.
+ */
 void send_message(request_type codereq, uint16_t id, uint16_t nb, uint16_t numfil, int sock_client){
     server_message * msg = malloc(sizeof(server_message));
     testMalloc(msg);
@@ -108,10 +140,19 @@ void send_message(request_type codereq, uint16_t id, uint16_t nb, uint16_t numfi
     if(nboctet <= 0) perror("send");
 }
 
+/**
+ * This function sends an error message to a client.
+ * @param sock_client The client's socket.
+ */
 void send_error_message(int sock_client){
     send_message(ERROR,0,0,0,sock_client);
 }
 
+/**
+ * This function handles the registration of a new client.
+ * @param pseudo The username of the new client.
+ * @param sock_client The client's socket.
+ */
 void inscription_client(char * pseudo, int sock_client){
     // Check if maximum number of clients has been reached
     if(id_dernier_client >= MAX_ID){
