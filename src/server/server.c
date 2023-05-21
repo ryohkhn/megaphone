@@ -583,7 +583,6 @@ void add_file(client_message *received_msg, int sock_client) {
     if (received_msg->numfil == 0) {
         add_new_fil(pseudo_from_id(get_id_entete(received_msg->entete.val)));
         received_msg->numfil = fils_size - 1;
-        pthread_mutex_unlock(&fil_mutex);
         printf("Numfil trouvé vide, création d'un nouveau fil : %d\n", received_msg->numfil);
     }
     else if (received_msg->numfil >= fils_size) {
@@ -592,13 +591,10 @@ void add_file(client_message *received_msg, int sock_client) {
         send_message(NONEXISTENT_FIL,0,0,0,sock_client);
         return;
     }
-
-
+    pthread_mutex_unlock(&fil_mutex);
 
     printf("allocate port\n");
     int port = allocate_port();
-
-
 
     printf("Envoi du message avec le port au client\n");
     // envoie message avec le port au client

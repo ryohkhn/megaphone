@@ -438,13 +438,13 @@ void download_file(int nbfil){
         goto error;
     }
 
-    for(int i = 0; i < 3; i++){
-        server_msg[i] = ntohs(server_msg[i]);
-    }
-
     request_type codereq = get_codereq_entete(server_msg[0]);
     if(!handle_codereq_error(codereq)){
         goto error;
+    }
+
+    for(int i = 0; i < 3; i++){
+        server_msg[i] = ntohs(server_msg[i]);
     }
 
     printf("message retour du serveur: \n");
@@ -556,20 +556,18 @@ void add_file(int nbfil) {
         goto error;
     }
 
-    for(int i = 0; i < 3; i++){
-        server_msg[i] = ntohs(server_msg[i]);
-    }
-    printf(" CODEREQ + ID = %hu\n", server_msg[0]);
-    printf("NUMFIL = %hu\n", server_msg[1]);
-    printf("NB (port) = %hu\n", server_msg[2]);
-
-    close(clientfd);
-
     request_type codereq = get_codereq_entete(server_msg[0]);
     if(!handle_codereq_error(codereq)){
         goto error;
     }
 
+    for(int i = 0; i < 3; i++){
+        server_msg[i] = ntohs(server_msg[i]);
+    }
+
+    printf(" CODEREQ + ID = %hu\n", server_msg[0]);
+    printf("NUMFIL = %hu\n", server_msg[1]);
+    printf("NB (port) = %hu\n", server_msg[2]);
 
     printf("\n\nappel a boucle envoie udp\n");
     // appel a boucle envoie udp avec en argument ->
