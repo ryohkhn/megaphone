@@ -479,7 +479,6 @@ void receive_file_udp(char * file_directory, int port, int fil, char * filename)
 }
 
 void send_file_udp(FILE * file, int port, client_message *msg, char * addr_IP) {
-    msg->numfil = ntohs(msg->numfil);
     printf("\n\nboucle envoie udp\n\n");
     printf("FILE = %p\n", file);
     printf("port = %d\n", port);
@@ -489,10 +488,17 @@ void send_file_udp(FILE * file, int port, client_message *msg, char * addr_IP) {
     printf("msg->datalen = %d\n",msg->datalen);
     printf("msg->data = %s\n", msg->data);
     printf("\n\nCréation et configuration du socket UDP\n");
-    // Création du socket IPV4 UDP
+    // Création du socket UDP
     int sock_udp = socket(AF_INET6, SOCK_DGRAM, 0);
     if (sock_udp < 0) {
         perror("Erreur de création du socket");
+        return;
+    }
+
+    int off = 0;
+    if (setsockopt(sock_udp, IPPROTO_IPV6, IPV6_V6ONLY, &off, sizeof(off)) < 0) {
+        perror("Erreur de désactivation de IPV6_V6ONLY");
+        close(sock_udp);
         return;
     }
 
@@ -502,10 +508,8 @@ void send_file_udp(FILE * file, int port, client_message *msg, char * addr_IP) {
     memset(&addr, 0, sizeof(addr));
     addr.sin6_family = AF_INET6;
     addr.sin6_port = htons(port);
-    // pour l'instant en local
-    printf("pour l'instant local : ::1\n");
-    //todo utiliser adresse mise en argument de la fonction
-    if (inet_pton(AF_INET6, "::1", &addr.sin6_addr) <= 0) {
+    printf("adresse IP = %s\n", addr_IP);
+    if (inet_pton(AF_INET6, addr_IP, &addr.sin6_addr) <= 0) {
         perror("Erreur lors de la conversion de l'adresse IP");
         close(sock_udp);
         return;

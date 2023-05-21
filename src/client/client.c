@@ -435,9 +435,13 @@ void download_file(int nbfil){
         goto error;
     }
 
+    for(int i = 0; i < 3; i++){
+        server_msg[i] = ntohs(server_msg[i]);
+    }
+
     request_type codereq = get_codereq_entete(server_msg[0]);
     if(!handle_codereq_error(codereq)){
-        return;
+        goto error;
     }
 
     printf("message retour du serveur: \n");
@@ -521,8 +525,6 @@ void add_file(int nbfil) {
     char *serialized_msg = client_message_to_string(msg);
     printf("serialization validée \n");
 
-
-
     printf("Envoi du message au serveur\n");
     ssize_t ecrit = send(clientfd, serialized_msg, CLIENT_MESSAGE_SIZE + DATALEN_SIZE + sizeof(char) * (msg->datalen), 0);
 
@@ -551,11 +553,6 @@ void add_file(int nbfil) {
         goto error;
     }
 
-    request_type codereq = get_codereq_entete(server_msg[0]);
-    if(!handle_codereq_error(codereq)){
-        return;
-    }
-
     for(int i = 0; i < 3; i++){
         server_msg[i] = ntohs(server_msg[i]);
     }
@@ -564,6 +561,12 @@ void add_file(int nbfil) {
     printf("NB (port) = %hu\n", server_msg[2]);
 
     close(clientfd);
+
+    request_type codereq = get_codereq_entete(server_msg[0]);
+    if(!handle_codereq_error(codereq)){
+        goto error;
+    }
+
 
     printf("\n\nappel a boucle envoie udp\n");
     // appel a boucle envoie udp avec en argument ->
@@ -588,18 +591,18 @@ void add_file(int nbfil) {
 }
 
 void client(){
-    int fdsock=socket(PF_INET,SOCK_STREAM,0);
+    int fdsock=socket(PF_INET6,SOCK_STREAM,0);
     if(fdsock==-1){
         perror("Socket creation");
         exit(1);
     }
 
     //*** creation de l'adresse du destinataire (serveur) ***
-    struct sockaddr_in address_sock;
+    struct sockaddr_in6 address_sock;
     memset(&address_sock,0,sizeof(address_sock));
-    address_sock.sin_family = AF_INET;
-    address_sock.sin_port = htons(server_port);
-    if (inet_pton(AF_INET, server_addr, &(address_sock.sin_addr)) <= 0) {
+    address_sock.sin6_family = AF_INET6;
+    address_sock.sin6_port = htons(server_port);
+    if (inet_pton(AF_INET6, server_addr, &(address_sock.sin6_addr)) <= 0) {
         printf("Unknown address %s.\n Please make sure the address is IPv6 format.\n", server_addr);
         exit(EXIT_FAILURE);
     }

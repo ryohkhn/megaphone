@@ -563,6 +563,61 @@ void add_subscription_to_fil(client_message *received_msg, int sock_client){
     if(nboctet<=0)perror("send");
 }
 
+void add_file(client_message *received_msg, int sock_client) {
+    printf("\n\ndébut add_file\n\n");
+    printf("received_msg->entete.val = %d\n", received_msg->entete.val);
+    printf("received_msg->nb = %d\n", received_msg->nb);
+    printf("received_msg->numfil = %d\n", received_msg->numfil);
+    printf("received_msg->datalen = %d\n",received_msg->datalen);
+    printf("received_msg->data = %s\n", received_msg->data);
+    received_msg->entete.val = ntohs(received_msg->entete.val);
+    received_msg->numfil = ntohs(received_msg->numfil);
+    received_msg->nb = ntohs(received_msg->nb);
+    printf("\napres ntohs() :\n");
+    printf("received_msg->numfil = %d\n", received_msg->numfil);
+    printf("received_msg->datalen = %d\n",received_msg->datalen);
+    printf("received_msg->data = %s\n", received_msg->data);
+
+    // on fait les vérifications de pour ajouter un billet à un fil
+    pthread_mutex_lock(&fil_mutex);
+    if (received_msg->numfil == 0) {
+        add_new_fil(pseudo_from_id(get_id_entete(received_msg->entete.val)));
+        received_msg->numfil = fils_size - 1;
+        pthread_mutex_unlock(&fil_mutex);
+        printf("Numfil trouvé vide, création d'un nouveau fil : %d\n", received_msg->numfil);
+    }
+    else if (received_msg->numfil >= fils_size) {
+        printf("Client tried to write to a nonexistent fil\n");
+        pthread_mutex_unlock(&fil_mutex);
+        send_message(NONEXISTENT_FIL,0,0,0,sock_client);
+        return;
+    }
+
+
+
+    printf("allocate port\n");
+    int port = allocate_port();
+
+
+
+    printf("Envoi du message avec le port au client\n");
+    // envoie message avec le port au client
+    send_message(UPLOAD_FILE, ntohs(received_msg->entete.val) >> 5, port, received_msg->numfil, sock_client);
+
+    // on reçoit et on écrit le fichier
+    receive_file_udp(directory_for_files, port, received_msg->numfil, (char *)received_msg->data);
+
+    printf("fin while, release_port, fclose, close\n");
+
+    release_port(port);
+
+    // on ajoute le fichier au fil
+    printf("on ajoute le fichier au fil\n");
+    pthread_mutex_lock(&fil_mutex);
+    add_message_to_fil(received_msg,received_msg->numfil, 1);
+    pthread_mutex_unlock(&fil_mutex);
+}
+
 void download_file(client_message *received_msg, int sockclient, char * client_IP) {
     printf("message initial\n");
     printf("received_msg->entete.val = %d\n", received_msg->entete.val);
@@ -573,9 +628,12 @@ void download_file(client_message *received_msg, int sockclient, char * client_I
     received_msg->numfil = ntohs(received_msg->numfil);
     received_msg->nb = ntohs(received_msg->nb);
     received_msg->entete.val = ntohs(received_msg->entete.val);
+    printf("\napres ntohs() :\n");
+    printf("received_msg->numfil = %d\n", received_msg->numfil);
+    printf("received_msg->datalen = %d\n",received_msg->datalen);
+    printf("received_msg->data = %s\n", received_msg->data);
 
     // on fait les vérifications de pour ajouter un billet à un fil
-    // TODO NTOHS received_msg->numfil
     pthread_mutex_lock(&fil_mutex);
     if (received_msg->numfil == 0 || received_msg->numfil >= fils_size) {
         printf("error 1\n");
@@ -617,49 +675,6 @@ void download_file(client_message *received_msg, int sockclient, char * client_I
     // nettoyage et free
     fclose(file);
     printf("\n\nfin download_files\n");
-}
-
-void add_file(client_message *received_msg, int sock_client) {
-    printf("\n\ndébut add_file\n\n");
-    // TODO NTOHS received_msg->numfil
-    // on fait les vérifications de pour ajouter un billet à un fil
-    pthread_mutex_lock(&fil_mutex);
-    if (received_msg->numfil == 0) {
-        add_new_fil(pseudo_from_id(get_id_entete(received_msg->entete.val)));
-        received_msg->numfil = fils_size - 1;
-        pthread_mutex_unlock(&fil_mutex);
-        printf("Numfil trouvé vide, création d'un nouveau fil : %d\n", received_msg->numfil);
-    }
-    else if (received_msg->numfil >= fils_size) {
-        printf("Client tried to write to a nonexistent fil\n");
-        pthread_mutex_unlock(&fil_mutex);
-        send_message(NONEXISTENT_FIL,0,0,0,sock_client);
-        return;
-    }
-
-
-
-    printf("allocate port\n");
-    int port = allocate_port();
-
-
-
-    printf("Envoi du message avec le port au client\n");
-    // envoie message avec le port au client
-    send_message(UPLOAD_FILE, ntohs(received_msg->entete.val) >> 5, port, received_msg->numfil, sock_client);
-
-    // on reçoit et on écrit le fichier
-    receive_file_udp(directory_for_files, port, received_msg->numfil, (char *)received_msg->data);
-
-    printf("fin while, release_port, fclose, close\n");
-
-    release_port(port);
-
-    // on ajoute le fichier au fil
-    printf("on ajoute le fichier au fil\n");
-    pthread_mutex_lock(&fil_mutex);
-    add_message_to_fil(received_msg,received_msg->numfil, 1);
-    pthread_mutex_unlock(&fil_mutex);
 }
 
 int verify_user_id(uint16_t id){
