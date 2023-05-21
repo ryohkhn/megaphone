@@ -25,7 +25,9 @@ int handle_codereq_error(request_type codereq){
     }
 }
 
-// Function to initialize th elist of accesible ports
+/**
+ * This function initializes an array of available ports.
+ */
 void initialize_ports() {
     available_ports = malloc(sizeof(int) * PORT_RANGE);
     testMalloc(available_ports);
@@ -34,7 +36,10 @@ void initialize_ports() {
     }
 }
 
-// Function to allocate a port
+/**
+ * This function allocates a port from the list of available ports.
+ * @return The allocated port number.
+ */
 uint16_t allocate_port() {
     int allocated_port = -1;
     pthread_mutex_lock(&port_mutex);
@@ -50,7 +55,10 @@ uint16_t allocate_port() {
     return allocated_port;
 }
 
-// Function to free a port
+/**
+ * This function releases a port back into the list of available ports.
+ * @param port The port to be released.
+ */
 void release_port(int port) {
     if (port >= MIN_PORT && port <= MAX_PORT) {
         pthread_mutex_lock(&port_mutex);
@@ -105,7 +113,7 @@ void send_message(res_inscription *i,char *data,int nbfil){
     memset(buffer,0,SERVER_MESSAGE_SIZE);
     ssize_t read = recv_bytes(clientfd,buffer,SERVER_MESSAGE_SIZE);
 
-    printf("retour du serveur reçu\n");
+    printf("receive server return\n");
     if(read < 0){
         perror("Error recv");
         exit(4);

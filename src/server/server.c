@@ -32,7 +32,6 @@ void initialize_ports() {
 }
 
 /**
-<<<<<<< HEAD
  * This function releases a port back into the list of available ports.
  * @param port The port to be released.
  */
