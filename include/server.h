@@ -13,6 +13,7 @@
 #define MAX_FIL 65536
 #define PORT 7778
 #define LOCAL_ADDR "::"
+#define MULTICAST_BASE_ADDRESS "ff02::1:1"
 #define directory_for_files "fichiers_fil"
 
 // Maximum number of clients possible (2^11 - 1)

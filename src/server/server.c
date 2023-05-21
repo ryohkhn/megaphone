@@ -61,7 +61,7 @@ char *pseudo_from_id(int id){
     list_client *current_client=clients;
     char *pseudo="##########";
     if(current_client==NULL){
-        printf("Pas de clients!\n");
+        printf("There are no clients yet!\n");
         return pseudo;
     }
     else{
@@ -209,10 +209,10 @@ void post_message(client_message *msg,int sock_client){
         add_new_fil(pseudo_from_id(id));
         numfil=fils_size-1;
         // pthread_mutex_unlock(&fil_mutex);
-        printf("Numfil trouvé vide: %d\n",numfil);
+        printf("Found empty thread: %d\n",numfil);
     }
     else if(numfil>=fils_size){
-        printf("Client tried to write to a nonexistent fil\n");
+        printf("Client tried to write to a nonexistent thread\n");
         pthread_mutex_unlock(&fil_mutex);
         send_message(NONEXISTENT_FIL,0,0,0,sock_client);
         return;
@@ -253,7 +253,7 @@ size_t send_messages_from_fil(char *buffer,uint16_t numfil,size_t offset,uint16_
         // Else we send the buffer to the client
         if((offset+sizeof(uint8_t)*22+sizeof(uint8_t)*datalen)>BUFSIZ){
             ssize_t nboctet = send(sock_client, buffer,sizeof(char)*offset, 0);
-            if(nboctet <= 0)perror("send n billets to client");
+            if(nboctet <= 0)perror("send n messages to client");
             printf("Octets envoyés au client: %zu\n",nboctet);
 
             free(buffer);
@@ -314,7 +314,7 @@ void request_threads_list(client_message *msg, int sock_client){
         send_message(LIST_MESSAGES,get_id_entete(msg->entete.val),total_nb,fils_size,sock_client);
 
         // The server send buffers of maximum BUFSIZ
-        char* buffer=malloc(sizeof(char)*BUFSIZ);
+        char* buffer = malloc(sizeof(char)*BUFSIZ);
         testMalloc(buffer);
         memset(buffer,0,sizeof(char)*BUFSIZ);
         size_t offset=0;
@@ -331,14 +331,14 @@ void request_threads_list(client_message *msg, int sock_client){
 
             // The server send the buffer if the total bytes exceed BUFSIZ
             // Else we get the offset of the current buffer to append more data
-            offset=send_messages_from_fil(buffer,i,offset,cpy_msg_nb,sock_client);
+            offset = send_messages_from_fil(buffer,i,offset,cpy_msg_nb,sock_client);
         }
         pthread_mutex_unlock(&fil_mutex);
 
         // If the last buffer is not yet sent, the server send it to the client
         if(offset!=0){
             ssize_t nboctet = send(sock_client, buffer,sizeof(char)*(offset), 0);
-            if(nboctet <= 0) perror("send n billets to client");
+            if(nboctet <= 0) perror("send n messages to client");
             printf("Octets envoyés au client: %zu\n",nboctet);
         }
 
@@ -361,7 +361,7 @@ void request_threads_list(client_message *msg, int sock_client){
         send_message(LIST_MESSAGES,get_id_entete(msg->entete.val),msg_nb,msg_numfil,sock_client);
 
         // The server send buffers of maximum BUFSIZ
-        char* buffer=malloc(sizeof(char)*BUFSIZ);
+        char* buffer = malloc(sizeof(char)*BUFSIZ);
         testMalloc(buffer);
         memset(buffer,0,sizeof(char)*BUFSIZ);
         size_t offset=0;
@@ -372,7 +372,7 @@ void request_threads_list(client_message *msg, int sock_client){
         pthread_mutex_unlock(&fil_mutex);
         if(offset!=0){
             ssize_t nboctet = send(sock_client, buffer,sizeof(char)*(offset), 0);
-            if(nboctet <= 0) perror("send n billets to client");
+            if(nboctet <= 0) perror("send n messages to client");
             printf("Octets envoyés au client: %zu\n",nboctet);
         }
         free(buffer);
@@ -386,7 +386,7 @@ void send_fil_notification(uint16_t fil_index) {
     // Create a socket for sending multicast notifications
     int sockfd = socket(AF_INET6, SOCK_DGRAM, 0);
     if (sockfd < 0) {
-        perror("socket");
+        perror("Error creating socket");
         return;
     }
 
@@ -434,7 +434,7 @@ void *send_notifications(void *arg){
             if( fils[i].head!=NULL && fils[i].head->msg!=NULL && fils[i].head != fils[i].last_multicasted_message
             && fils[i].subscribed>0){
                 // Send notifications for the fil
-                printf("Sending fil notif to fil %d\n",i);
+                printf("Sending thread notifification to thread %d subscribers.\n",i);
                 send_fil_notification(i);
             }
         }
@@ -445,11 +445,11 @@ void *send_notifications(void *arg){
 }
 
 void add_subscription_to_fil(client_message *received_msg, int sock_client){
-    uint16_t numfil=ntohs(received_msg->numfil);
-    int id=ntohs(received_msg->entete.val)>>5;
+    uint16_t numfil = ntohs(received_msg->numfil);
+    int id = ntohs(received_msg->entete.val)>>5;
 
     // Prepare the multicast address: start at base and add numfil
-    const char *base_address="ff02::1:1";
+    const char *base_address = MULTICAST_BASE_ADDRESS;
     struct in6_addr multicast_address;
 
     if(inet_pton(AF_INET6,base_address,&multicast_address)<=0){
@@ -468,7 +468,6 @@ void add_subscription_to_fil(client_message *received_msg, int sock_client){
     }
 
     uint8_t *addresse_a_envoyer;
-
     pthread_mutex_lock(&fil_mutex);
     // Check if fil already has a multicast address
     if(numfil >= fils_size || numfil == 0){
@@ -485,7 +484,6 @@ void add_subscription_to_fil(client_message *received_msg, int sock_client){
         size_t serialized_msg_size=sizeof(uint8_t)*22;
 
         ssize_t nboctet=send(sock_client,serialized_msg,serialized_msg_size,0);
-        printf("DEBUG SENT %zd OCTETS\n",nboctet);
         if(nboctet<=0)perror("send");
         pthread_mutex_unlock(&fil_mutex);
         return;
@@ -504,17 +502,17 @@ void add_subscription_to_fil(client_message *received_msg, int sock_client){
             return;
         }
 
-        // Initialisation de l'adresse d'abonnement
+        // Initialising the multicast adress
         struct sockaddr_in6 server_addr;
         memset(&server_addr,0,sizeof(server_addr));
         server_addr.sin6_family=AF_INET6;
         inet_pton(AF_INET6,address_str,&server_addr.sin6_addr);
-        server_addr.sin6_port=htons(MULTICAST_PORT); //TODO pick port?
+        server_addr.sin6_port=htons(MULTICAST_PORT);
 
-        // Initialisation de l'interface locale autorisant le multicast IPv6
-        int ifindex=0; //if_nametoindex("eth0");
+        // Initialising multicast
+        int ifindex=0;
         if(setsockopt(multicast_sock,IPPROTO_IPV6,IPV6_MULTICAST_IF,&ifindex,sizeof(ifindex))){
-            perror("erreur initialisation de l'interface locale");
+            perror("Error initialising multicast");
             pthread_mutex_unlock(&fil_mutex);
             return;
         }
@@ -700,7 +698,7 @@ void *serve(void *arg){
         exit(1);
     }
     else if(read==0){
-        printf("Connexion with server closed");
+        printf("Connection with server closed");
         close(sock_client);
     }
 
@@ -711,7 +709,7 @@ void *serve(void *arg){
 
     uint16_t id_client = get_id_entete(header);
     if(!verify_user_id(id_client)){
-        printf("A user tried to connect with a non existent ID\n");
+        printf("A user tried to connect with a non-existent ID\n");
         send_message(NONEXISTENT_ID,0,0,0,sock_client);
         return NULL;
     }
@@ -804,6 +802,7 @@ void *serve(void *arg){
                 break;
             default:
                 perror("Server codereq selection");
+                // TODO send codereq 31
                 break;
         }
     }
@@ -889,14 +888,15 @@ int main(int argc, char** argv){
 
     //initialize the ports list
     initialize_ports();
+
     // Initialise the fils
     fils = malloc(sizeof(fil));
     testMalloc(fils);
 
-    // The fil 0 has no originaire
+    // The thread 0 has no originaire
     add_new_fil("");
 
-    //Initialise the client list
+    // Initialise the client list
     clients = malloc(sizeof(list_client));
     testMalloc(clients);
 
@@ -907,11 +907,11 @@ int main(int argc, char** argv){
     // create the directory for added files
     int result = mkdir(directory_for_files, 0777);
     if (result == 0) {
-        printf("Dossier \"%s\" créé avec succès.\n", directory_for_files);
+        printf("Folder \"%s\" has been successfully created.\n", directory_for_files);
     } else if (errno == EEXIST) {
-        printf("Le dossier \"%s\" existe déjà.\n", directory_for_files);
+        printf("The folder \"%s\" already exists.\n", directory_for_files);
     } else {
-        perror("Erreur lors de la création du dossier");
+        perror("Error creating folder.");
     }
 
 
@@ -919,18 +919,17 @@ int main(int argc, char** argv){
         struct sockaddr_in6 addrclient;
         socklen_t size = sizeof(addrclient);
 
-        //*** on crée la varaiable sur le tas ***
+        //*** we allocate the socket ***
         int *sock_client = malloc(sizeof(int));
         testMalloc(sock_client);
 
-        //*** le serveur accepte une connexion et initialise le socket de communication avec le client ***
+        //*** the server accepts a connection ***
         *sock_client = accept(sock,(struct sockaddr *) &addrclient,&size);
 
-        //*** on récupère l'adresse IP du client ***
         char client_ip[INET6_ADDRSTRLEN];
         inet_ntop(AF_INET6, &(addrclient.sin6_addr), client_ip, INET6_ADDRSTRLEN);
 
-        //*** on stocke l'adresse IP et le socket dans une structure
+        //*** we prepare a structure with the thread arguments
         thread_args *args = malloc(sizeof(thread_args));
         testMalloc(args);
         args->sock_client = sock_client;
@@ -938,21 +937,21 @@ int main(int argc, char** argv){
 
         if(sock_client>=0){
             pthread_t thread;
-            //*** le serveur cree un thread et passe un pointeur sur socket client à la fonction serve ***
+            //*** the server creates a thread ***
             if(pthread_create(&thread,NULL,serve,args)==-1){
                 perror("pthread_create");
                 continue;
             }
-            //*** affichage de l'adresse du client ***
+            //*** printing the adress of connected client ***
             char nom_dst[INET6_ADDRSTRLEN];
-            printf("New client connection : %s %d\n",inet_ntop(AF_INET6,&addrclient.sin6_addr,nom_dst,sizeof(nom_dst)),
-                   htons(addrclient.sin6_port));
+            printf("New client connection : %s %d\n",inet_ntop(AF_INET6,&addrclient.sin6_addr,nom_dst,sizeof(nom_dst)), htons(addrclient.sin6_port));
         }
         else free(sock_client);
     }
     pthread_cancel(notification_thread);
 
-    //*** fermeture socket serveur ***
+
+    //*** Closing server socket ***
     printf("Closing socket\n");
     close(sock);
 

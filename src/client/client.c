@@ -12,15 +12,12 @@ int handle_codereq_error(request_type codereq){
         case NONEXISTENT_ID:
             printf("Error: your ID doesn't exist on the server.\n");
             return 0;
-        case ERROR:
-            printf("Error: Internal server error.\n");
-            return 0;
         default:
             return 1;
     }
 }
 
-// Fonction pour initialiser la liste des ports disponibles
+// Function to initialize th elist of accesible ports
 void initialize_ports() {
     available_ports = malloc(sizeof(int) * PORT_RANGE);
     testMalloc(available_ports);
@@ -29,7 +26,7 @@ void initialize_ports() {
     }
 }
 
-// Fonction pour allouer un port
+// Function to allocate a port
 uint16_t allocate_port() {
     int allocated_port = -1;
     pthread_mutex_lock(&port_mutex);
@@ -45,7 +42,7 @@ uint16_t allocate_port() {
     return allocated_port;
 }
 
-// Fonction pour libérer un port
+// Function to free a port
 void release_port(int port) {
     if (port >= MIN_PORT && port <= MAX_PORT) {
         pthread_mutex_lock(&port_mutex);
@@ -76,18 +73,17 @@ void send_message(res_inscription *i,char *data,int nbfil){
 
     msg->entete.val = create_entete(POST_MESSAGE,i->id)->val;
     msg->numfil = htons(nbfil);
-    msg->nb = 0;
     uint8_t datalen = strlen(data)+1;
-    msg->datalen = datalen;
-    msg->data = malloc(sizeof(uint8_t)*(datalen));
+    msg->data = malloc(sizeof(uint8_t)*((datalen)+1));
     testMalloc(data);
+    msg->datalen = datalen;
     memcpy(msg->data,data,sizeof(uint8_t)*(datalen));
 
     // Serialize the client_message structure and send to clientfd
     char *serialized_msg = client_message_to_string(msg);
 
-    size_t len = CLIENT_MESSAGE_SIZE + DATALEN_SIZE + sizeof(char) * (msg->datalen);
-    printf("len: %zu\n",len);
+    // todo modifier datalen + 1 en datalen ? (puisque datalen = strlen(data) + 1)
+    size_t len = CLIENT_MESSAGE_SIZE + sizeof(char) * (msg->datalen + 1);
     ssize_t ecrit = send(clientfd, serialized_msg, len, 0);
 
     if(ecrit<=0){
@@ -95,21 +91,19 @@ void send_message(res_inscription *i,char *data,int nbfil){
         exit(3);
     }
 
-    //*** reception d'un message ***
-
+    //*** message reception ***
     char *buffer = malloc(SERVER_MESSAGE_SIZE);
     testMalloc(buffer);
     memset(buffer,0,SERVER_MESSAGE_SIZE);
-
     ssize_t read = recv_bytes(clientfd,buffer,SERVER_MESSAGE_SIZE);
 
     printf("retour du serveur reçu\n");
     if(read < 0){
-        perror("erreur lecture");
+        perror("Error recv");
         exit(4);
     }
     if(read == 0){
-        printf("serveur off\n");
+        printf("Server closed\n");
         exit(0);
     }
 
@@ -118,7 +112,7 @@ void send_message(res_inscription *i,char *data,int nbfil){
     if(!handle_codereq_error(codereq)){
         return;
     }
-    printf("Message écrit sur le fil %d\n", ntohs(server_msg->numfil));
+    printf("Message has been posted on the thread %d\n", ntohs(server_msg->numfil));
 }
 
 char* pseudo_nohashtags(uint8_t* pseudo){
@@ -142,20 +136,17 @@ void print_n_tickets(char *server_msg,uint16_t numfil){
         return;
     }
 
-    printf("ID local: %d\n",user_id);
-    printf("ID reçu: %d\n",get_id_entete(received_msg->entete.val));
-
     uint16_t nb_fil_serv = ntohs(received_msg->numfil);
     uint16_t nb_serv = ntohs(received_msg->nb);
     size_t offset = SERVER_MESSAGE_SIZE;
 
     if(numfil == 0){
-        printf("Nombre de fils à afficher: %d\n",nb_fil_serv);
-        printf("Total de messages à afficher: %d\n",nb_serv);
+        printf("Number of threads to print: %d\n",nb_fil_serv);
+        printf("Number of messages to print: %d\n",nb_serv);
     }
     else{
-        printf("Fil affiché: %d\n",nb_fil_serv);
-        printf("Nombre de messages à afficher: %d\n",nb_serv);
+        printf("Printed thread: %d\n",nb_fil_serv);
+        printf("Number of messages to print: %d\n",nb_serv);
     }
 
     for(int i=0; i<nb_serv; i++){
@@ -168,7 +159,7 @@ void print_n_tickets(char *server_msg,uint16_t numfil){
         printf("%s\n",received_billet->data);
 
         // todo modifier datalen + 1 en datalen ? (puisque datalen = strlen(data) + 1)
-        offset+=NUMFIL_SIZE+ORIGINE_SIZE+PSEUDO_SIZE+(sizeof(uint8_t)*(received_billet->datalen+1));
+        offset += NUMFIL_SIZE + ORIGINE_SIZE + PSEUDO_SIZE + (sizeof(uint8_t)*(received_billet->datalen+1));
     }
     printf("\n");
 }
@@ -187,7 +178,7 @@ void request_n_tickets(res_inscription *i,uint16_t numfil,uint16_t n){
 
     ssize_t ecrit = send(clientfd,msg,CLIENT_MESSAGE_SIZE+DATALEN_SIZE,0);
     if(ecrit<=0){
-        perror("Erreur ecriture");
+        perror("Error send");
         exit(3);
     }
     printf("Message envoyé au serveur.\n");
@@ -199,7 +190,7 @@ void request_n_tickets(res_inscription *i,uint16_t numfil,uint16_t n){
     ssize_t ret = recv_unlimited_bytes(clientfd,buffer,buffer_size);
     if(ret < 0){
         free(buffer);
-        perror("Receive unlimited bytes when requesting n tickets");
+        perror("Received unlimited bytes when requesting n tickets");
         exit(1);
     }
 
@@ -219,8 +210,7 @@ res_inscription* send_inscription(inscription *i){
     testMalloc(buffer);
     memset(buffer,0,SERVER_MESSAGE_SIZE);
 
-    //*** reception d'un message ***
-    // ssize_t recu = recv(clientfd,buffer,SERVER_MESSAGE_SIZE,0);
+    //*** message reception ***
     ssize_t read = recv_bytes(clientfd,buffer,SERVER_MESSAGE_SIZE);
     printf("retour du serveur reçu\n");
     if(read<0){
@@ -228,7 +218,7 @@ res_inscription* send_inscription(inscription *i){
         exit(4);
     }
     if(read==0){
-        printf("Server off");
+        printf("Server closed");
         exit(0);
     }
     server_message *server_msg = string_to_server_message(buffer);
@@ -239,19 +229,14 @@ res_inscription* send_inscription(inscription *i){
         return NULL;
     }
 
-    // print_bits(ntohs(server_msg->entete.val));
-    // print_bits(ntohs(server_msg->numfil));
-    // print_bits(ntohs(server_msg->nb));
-
     res_inscription *res = malloc(sizeof(res_inscription));
     testMalloc(res);
-    res->id=get_id_entete(server_msg->entete.val);
+    res->id = get_id_entete(server_msg->entete.val);
 
     return res;
 }
 
 void *listen_multicast_messages(void *arg) {
-
     server_subscription_message *received_msg = (server_subscription_message *)arg;
     uint8_t *multicast_address = received_msg->addrmult;
 
@@ -268,14 +253,14 @@ void *listen_multicast_messages(void *arg) {
     mreq.ipv6mr_interface = 0; // Let the system choose the interface
 
     if(setsockopt(sockfd,IPPROTO_IPV6,IPV6_ADD_MEMBERSHIP,&mreq,sizeof(mreq))<0){
-        perror("setsockopt(IPV6_ADD_MEMBERSHIP)");
+        perror("Error setsockopt(IPV6_ADD_MEMBERSHIP)");
         close(sockfd);
         return NULL;
     }
 
     int enable=1;
     if(setsockopt(sockfd,SOL_SOCKET,SO_REUSEADDR,&enable,sizeof(enable))<0){
-        perror("setsockopt(SO_REUSEADDR)");
+        perror("Error setsockopt(SO_REUSEADDR)");
         close(sockfd);
         return NULL;
     }
@@ -288,7 +273,7 @@ void *listen_multicast_messages(void *arg) {
     local_addr.sin6_port = received_msg->nb;
 
     if(bind(sockfd,(struct sockaddr *) &local_addr,sizeof(local_addr))<0){
-        perror("bind");
+        perror("Error bind");
         close(sockfd);
         return NULL;
     }
@@ -300,12 +285,12 @@ void *listen_multicast_messages(void *arg) {
         socklen_t addrlen=sizeof(src_addr);
 
         ssize_t nbytes = recvfrom(sockfd,buffer,sizeof(buffer),0,(struct sockaddr *) &src_addr,&addrlen);
-        if(nbytes<0){
-            perror("recvfrom");
+        if(nbytes < 0){
+            perror("Error recvfrom");
             break;
         }
 
-        // deserializer le message recu
+        // Deserialize the received message
         notification *notification = string_to_notification(buffer);
 
         // Process the received message
@@ -327,11 +312,10 @@ void subscribe_to_fil(uint16_t fil_number) {
     testMalloc(msg);
     msg->entete.val = create_entete(SUBSCRIBE,user_id)->val;
     msg->numfil = htons(fil_number);
-    msg->datalen = 0;
 
     ssize_t ecrit = send(clientfd,msg,CLIENT_MESSAGE_SIZE+DATALEN_SIZE,0);
     if(ecrit<=0){
-        perror("Erreur ecriture");
+        perror("Error send");
         exit(3);
     }
 
@@ -342,11 +326,11 @@ void subscribe_to_fil(uint16_t fil_number) {
 
     ssize_t read = recv_bytes(clientfd,server_msg,SERVER_SUBSCRIPTION_SIZE);
     if(read < 0){
-        perror("erreur lecture");
+        perror("Error recv");
         exit(4);
     }
     if(read == 0){
-        printf("serveur off\n");
+        printf("Server closed\n");
         exit(0);
     }
 
@@ -438,13 +422,13 @@ void download_file(int nbfil){
         goto error;
     }
 
+    for(int i = 0; i < 3; i++){
+        server_msg[i] = ntohs(server_msg[i]);
+    }
+
     request_type codereq = get_codereq_entete(server_msg[0]);
     if(!handle_codereq_error(codereq)){
         goto error;
-    }
-
-    for(int i = 0; i < 3; i++){
-        server_msg[i] = ntohs(server_msg[i]);
     }
 
     printf("message retour du serveur: \n");
@@ -476,7 +460,7 @@ void add_file(int nbfil) {
     testMalloc(msg);
 
     msg->entete.val = create_entete(UPLOAD_FILE, user_id)->val;
-    msg->nb = 0;
+    msg->nb = htons(0);
     msg->numfil = htons(nbfil);
 
     printf("Ouverture et vérification du fichier\n");
@@ -538,7 +522,6 @@ void add_file(int nbfil) {
     if (ecrit == 0) {
         printf("serveur off\n");
         goto error;
-
     }
 
     printf("Réception du message du serveur\n");
@@ -556,18 +539,20 @@ void add_file(int nbfil) {
         goto error;
     }
 
+    for(int i = 0; i < 3; i++){
+        server_msg[i] = ntohs(server_msg[i]);
+    }
+    printf(" CODEREQ + ID = %hu\n", server_msg[0]);
+    printf("NUMFIL = %hu\n", server_msg[1]);
+    printf("NB (port) = %hu\n", server_msg[2]);
+
+    close(clientfd);
+
     request_type codereq = get_codereq_entete(server_msg[0]);
     if(!handle_codereq_error(codereq)){
         goto error;
     }
 
-    for(int i = 0; i < 3; i++){
-        server_msg[i] = ntohs(server_msg[i]);
-    }
-
-    printf(" CODEREQ + ID = %hu\n", server_msg[0]);
-    printf("NUMFIL = %hu\n", server_msg[1]);
-    printf("NB (port) = %hu\n", server_msg[2]);
 
     printf("\n\nappel a boucle envoie udp\n");
     // appel a boucle envoie udp avec en argument ->
@@ -598,7 +583,7 @@ void client(){
         exit(1);
     }
 
-    //*** creation de l'adresse du destinataire (serveur) ***
+    //*** creating server sockaddr ***
     struct sockaddr_in6 address_sock;
     memset(&address_sock,0,sizeof(address_sock));
     address_sock.sin6_family = AF_INET6;
@@ -608,7 +593,7 @@ void client(){
         exit(EXIT_FAILURE);
     }
 
-    //*** demande de connexion au serveur ***
+    //*** connection to the server ***
     int r = connect(fdsock,(struct sockaddr *) &address_sock,sizeof(address_sock));
     if(r==-1){
         perror("Connection to server failed");
@@ -631,12 +616,12 @@ void print_ascii(){
            " |                |___/      |_|                              |\n"
            " |                                                            |\n"
            " |                                                            |\n"
-           " |               1 - Inscription                              |\n"
-           " |               2 - Poster un billet                         |\n"
-           " |               3 - Liste des n dernier billets              |\n"
-           " |               4 - S'abonner à un fil                       |\n"
-           " |               5 - Ajouter un fichier                       |\n"
-           " |               6 - Télécharger un fichier                   |\n"
+           " |               1 - Register                                 |\n"
+           " |               2 - Post a message                           |\n"
+           " |               3 - List the last n messages                 |\n"
+           " |               4 - Subscribe to a thread                    |\n"
+           " |               5 - Upload a file                            |\n"
+           " |               6 - Download a file                          |\n"
            " |                                                            |\n"
            "  ------------------------------------------------------------\n"
            "                                                  \n"
@@ -644,7 +629,7 @@ void print_ascii(){
 }
 
 res_inscription *inscription_client(char pseudo[10]){
-    inscription *i = create_inscription(pseudo);
+    inscription *i=create_inscription(pseudo);
     return send_inscription(i);
 }
 
@@ -657,7 +642,7 @@ void run(){
         print_ascii();
 
         while(1){
-            printf("Entrez un chiffre entre 1 et 6:\n");
+            printf("Please enter a number between 1 and 6:\n");
             print_prompt();
             if(scanf("%d",&choice)!=1){
                 while(getchar()!='\n');
@@ -683,7 +668,7 @@ void run(){
         client();
 
         switch(choice){
-            case REGISTER:
+            case 1:
                 printf("Please enter your username:\n");
                 print_prompt();
                 scanf("%s",pseudo);
@@ -696,7 +681,7 @@ void run(){
                 user_id = res_ins->id;
                 printf("id: %d\n",res_ins->id);
                 break;
-            case POST_MESSAGE:
+            case 2:
                 printf("Please enter the thread (0 for a new thread):\n");
                 print_prompt();
                 scanf("%d",&nbfil);
@@ -718,7 +703,7 @@ void run(){
 
                 send_message(res_ins,response,nbfil);
                 break;
-            case LIST_MESSAGES:
+            case 3:
                 printf("Please enter the thread:\n");
                 print_prompt();
                 scanf("%d",&nbfil);
@@ -728,21 +713,21 @@ void run(){
 
                 request_n_tickets(res_ins,nbfil,n);
                 break;
-            case SUBSCRIBE:
+            case 4:
                 printf("Please enter the thread:\n");
                 print_prompt();
                 scanf("%d",&nbfil);
 
                 subscribe_to_fil(nbfil);
                 break;
-            case UPLOAD_FILE:
+            case 5:
                 printf("Please enter the thread:\n");
                 print_prompt();
                 scanf("%d",&nbfil);
 
                 add_file(nbfil);
                 break;
-            case DOWNLOAD_FILE:
+            case 6:
                 printf("Please enter the thread:\n");
                 print_prompt();
                 scanf("%d",&nbfil);
@@ -753,7 +738,7 @@ void run(){
                 exit(0);
         }
 
-        printf("Connexion fermée avec le serveur\n");
+        printf("Connection closed with the server.\n");
         close(clientfd);
         free(response);
     }
