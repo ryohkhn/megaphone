@@ -61,8 +61,8 @@ void release_port(int port) {
 
 inscription *create_inscription(char pseudo[]){
     char new_pseudo[10];
+    strncpy(new_pseudo,pseudo,10);
     if(strlen(pseudo)!=10){
-        strncpy(new_pseudo,pseudo,10);
         for(size_t i=strlen(new_pseudo); i<10; i++){
             new_pseudo[i]='#';
         }
@@ -150,23 +150,31 @@ void print_n_tickets(char *server_msg,uint16_t numfil){
 
     if(numfil == 0){
         printf("Number of threads to print: %d\n",nb_fil_serv);
-        printf("Number of messages to print: %d\n",nb_serv);
+        printf("Total number of messages to print: %d\n",nb_serv);
     }
     else{
         printf("Printed thread: %d\n",nb_fil_serv);
         printf("Number of messages to print: %d\n",nb_serv);
     }
 
-    for(int i=0; i<nb_serv; i++){
-        server_billet *received_billet = string_to_server_billet(server_msg+offset);
-        uint16_t fil = ntohs(received_billet->numfil);
-        printf("\nFil %d\n",fil);
+    if(nb_serv == 0){
+        printf("\nNo messages.\n");
+    }
+    else{
+        for(int i=0; i<nb_serv; i++){
+            server_billet *received_billet = string_to_server_billet(server_msg+offset);
+            uint16_t fil = ntohs(received_billet->numfil);
+            printf("\nFil %d\n",fil);
+            if(fil!=0){
+                char* originaire=pseudo_nohashtags(received_billet->origine);
+                printf("Originaire du fil: %s\n",originaire);
+            }
+            char* pseudo=pseudo_nohashtags(received_billet->pseudo);
+            printf("\n\033[0;31m<%s>\033[0m ",pseudo);
+            printf("%s\n",received_billet->data);
 
-        char* pseudo=pseudo_nohashtags(received_billet->pseudo);
-        printf("\n\033[0;31m<%s>\033[0m ",pseudo);
-        printf("%s\n",received_billet->data);
-
-        offset += NUMFIL_SIZE + ORIGINE_SIZE + PSEUDO_SIZE + DATALEN_SIZE + (sizeof(uint8_t)*(received_billet->datalen));
+            offset += NUMFIL_SIZE + ORIGINE_SIZE + PSEUDO_SIZE + DATALEN_SIZE + (sizeof(uint8_t)*(received_billet->datalen));
+        }
     }
     printf("\n");
 }
@@ -205,6 +213,9 @@ void request_n_tickets(res_inscription *i,uint16_t numfil,uint16_t n){
 }
 
 res_inscription* send_inscription(inscription *i){
+    for(int j=0; j<10; ++j){
+        printf("%c\n",i->pseudo[j]);
+    }
     ssize_t ecrit = send(clientfd,i,REGISTER_SIZE,0);
     if(ecrit<=0){
         perror("erreur ecriture");
@@ -660,7 +671,7 @@ void run(){
         testMalloc(response);
         size_t len = 0;
 
-        char pseudo[10];
+        char pseudo[11];
         int nbfil=0;
         int n=0;
         ssize_t read;
