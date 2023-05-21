@@ -2,11 +2,9 @@
 
 #include "utilities.h"
 
-#define SIZE_BUF 1024
 #define directory_for_files = "downloaded_files"
 #define PORT 7778
 #define LOCAL_ADDR "::1"
-
 
 int clientfd;
 int user_id;

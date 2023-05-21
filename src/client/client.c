@@ -12,6 +12,9 @@ int handle_codereq_error(request_type codereq){
         case NONEXISTENT_ID:
             printf("Error: your ID doesn't exist on the server.\n");
             return 0;
+        case ERROR:
+            printf("Error: Internal server error.\n");
+            return 0;
         default:
             return 1;
     }
@@ -73,16 +76,18 @@ void send_message(res_inscription *i,char *data,int nbfil){
 
     msg->entete.val = create_entete(POST_MESSAGE,i->id)->val;
     msg->numfil = htons(nbfil);
+    msg->nb = 0;
     uint8_t datalen = strlen(data)+1;
-    msg->data = malloc(sizeof(uint8_t)*((datalen)+1));
-    testMalloc(data);
     msg->datalen = datalen;
+    msg->data = malloc(sizeof(uint8_t)*(datalen));
+    testMalloc(data);
     memcpy(msg->data,data,sizeof(uint8_t)*(datalen));
 
     // Serialize the client_message structure and send to clientfd
     char *serialized_msg = client_message_to_string(msg);
-    // todo modifier datalen + 1 en datalen ? (puisque datalen = strlen(data) + 1)
-    size_t len = CLIENT_MESSAGE_SIZE + sizeof(char) * (msg->datalen + 1);
+
+    size_t len = CLIENT_MESSAGE_SIZE + DATALEN_SIZE + sizeof(char) * (msg->datalen);
+    printf("len: %zu\n",len);
     ssize_t ecrit = send(clientfd, serialized_msg, len, 0);
 
     if(ecrit<=0){
@@ -97,7 +102,6 @@ void send_message(res_inscription *i,char *data,int nbfil){
     memset(buffer,0,SERVER_MESSAGE_SIZE);
 
     ssize_t read = recv_bytes(clientfd,buffer,SERVER_MESSAGE_SIZE);
-    // ssize_t recu = recv(clientfd,buffer,SERVER_MESSAGE_SIZE,0);
 
     printf("retour du serveur reçu\n");
     if(read < 0){
@@ -323,6 +327,7 @@ void subscribe_to_fil(uint16_t fil_number) {
     testMalloc(msg);
     msg->entete.val = create_entete(SUBSCRIBE,user_id)->val;
     msg->numfil = htons(fil_number);
+    msg->datalen = 0;
 
     ssize_t ecrit = send(clientfd,msg,CLIENT_MESSAGE_SIZE+DATALEN_SIZE,0);
     if(ecrit<=0){
@@ -471,7 +476,7 @@ void add_file(int nbfil) {
     testMalloc(msg);
 
     msg->entete.val = create_entete(UPLOAD_FILE, user_id)->val;
-    msg->nb = htons(0);
+    msg->nb = 0;
     msg->numfil = htons(nbfil);
 
     printf("Ouverture et vérification du fichier\n");
@@ -641,7 +646,7 @@ void print_ascii(){
 }
 
 res_inscription *inscription_client(char pseudo[10]){
-    inscription *i=create_inscription(pseudo);
+    inscription *i = create_inscription(pseudo);
     return send_inscription(i);
 }
 
@@ -680,7 +685,7 @@ void run(){
         client();
 
         switch(choice){
-            case 1:
+            case REGISTER:
                 printf("Please enter your username:\n");
                 print_prompt();
                 scanf("%s",pseudo);
@@ -693,7 +698,7 @@ void run(){
                 user_id = res_ins->id;
                 printf("id: %d\n",res_ins->id);
                 break;
-            case 2:
+            case POST_MESSAGE:
                 printf("Please enter the thread (0 for a new thread):\n");
                 print_prompt();
                 scanf("%d",&nbfil);
@@ -715,7 +720,7 @@ void run(){
 
                 send_message(res_ins,response,nbfil);
                 break;
-            case 3:
+            case LIST_MESSAGES:
                 printf("Please enter the thread:\n");
                 print_prompt();
                 scanf("%d",&nbfil);
@@ -725,21 +730,21 @@ void run(){
 
                 request_n_tickets(res_ins,nbfil,n);
                 break;
-            case 4:
+            case SUBSCRIBE:
                 printf("Please enter the thread:\n");
                 print_prompt();
                 scanf("%d",&nbfil);
 
                 subscribe_to_fil(nbfil);
                 break;
-            case 5:
+            case UPLOAD_FILE:
                 printf("Please enter the thread:\n");
                 print_prompt();
                 scanf("%d",&nbfil);
 
                 add_file(nbfil);
                 break;
-            case 6:
+            case DOWNLOAD_FILE:
                 printf("Please enter the thread:\n");
                 print_prompt();
                 scanf("%d",&nbfil);

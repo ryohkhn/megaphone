@@ -234,7 +234,7 @@ void post_message(client_message *msg,int sock_client){
 }
 
 /**
- * This function send the buffer with multiples messages if the total bytes exceed BUFSIZ
+ * This function send the buffer with multiples messages if the total bytes exceed BUFSIZ.
  * Else data is appended to the buffer
  * @param buffer the buffer of size BUFSIZ to append data to
  * @param numfil the fil to copy messages from
@@ -642,6 +642,7 @@ void download_file(client_message *received_msg, int sockclient, char * client_I
         send_message(NONEXISTENT_FIL,0,0,0,sockclient);
         return;
     }
+    pthread_mutex_unlock(&fil_mutex);
     printf("downloaded_files\n");
     printf("\n\nenvoie 1ere réponse au client:\n");
     printf("received_msg->entete.val = %d\n", received_msg->entete.val);
@@ -819,77 +820,6 @@ void *serve(void *arg){
 
     return NULL;
 }
-/*
-void *serve(void *arg){
-    // on cherche codereq pour creer la structure correspondante et appeler la bonne fonction
-    int sock_client=*((int *) arg);
-    char buffer[sizeof(client_message) + sizeof(char)*BUFSIZ];
-    ssize_t nb_octets=recv(sock_client,buffer,sizeof(buffer),0);
-
-    if(nb_octets<0){
-        perror("recv serve");
-        exit(1);
-        // gestion d'erreur
-    }
-    else if(nb_octets==0){
-        printf("la connexion a été fermée\n");
-        close(sock_client);
-        return NULL;
-        // la connexion a été fermée
-    }
-    else {
-        // Vérification de la valeur de l'entête pour différencier les deux cas
-        entete *header = (entete *) buffer;
-        request_type codereq = get_codereq_entete(header->val);
-        inscription *insc = NULL;
-        printf("CODEREQ %d\n",codereq);
-
-        client_message *received_msg = string_to_client_message(buffer);
-
-        switch(codereq){
-            case REGISTER:
-                insc = (inscription *) buffer;
-                inscription_client(insc->pseudo,sock_client);
-                break;
-            case POST_MESSAGE:
-                if(received_msg->nb!=0)
-                    send_error_message(sock_client);
-                else
-                    post_message(received_msg,sock_client);
-                break;
-            case LIST_MESSAGES:
-                if(received_msg->datalen!=0)
-                    send_error_message(sock_client);
-                else
-                    request_threads_list(received_msg,sock_client);
-                break;
-            case SUBSCRIBE:
-                printf("User wants to join fil %d\n",ntohs(received_msg->numfil));
-                add_subscription_to_fil(received_msg,sock_client);
-                break;
-            case UPLOAD_FILE:
-                if(received_msg->nb!=0)
-                    send_error_message(sock_client);
-                else
-                    add_file(received_msg,sock_client);
-                break;
-            case DOWNLOAD_FILE:
-                download_file(received_msg, sock_client);
-                break;
-            default:
-                perror("switch codereq");
-                break;
-        }
-    }
-
-    ssize_t ret=close(sock_client);
-    if(ret<0){
-        perror("close client's socket in thread");
-        exit(1);
-    }
-    return NULL;
-}
-*/
 
 
 int main(int argc, char** argv){
