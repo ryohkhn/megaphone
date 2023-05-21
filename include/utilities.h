@@ -39,6 +39,7 @@ typedef enum {
     SUBSCRIBE = 4,
     UPLOAD_FILE = 5,
     DOWNLOAD_FILE = 6,
+    NONEXISTENT_ID = 29,
     NONEXISTENT_FIL = 30,
     ERROR = 31
 } request_type;

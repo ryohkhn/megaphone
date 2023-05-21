@@ -4,6 +4,19 @@ void print_prompt(){
     printf("> ");
 }
 
+int handle_codereq_error(request_type codereq){
+    switch(codereq){
+        case NONEXISTENT_FIL:
+            printf("Error: the fil you tried to post in doesn't exist.\n");
+            return 0;
+        case NONEXISTENT_ID:
+            printf("Error: your ID doesn't exist on the server.\n");
+            return 0;
+        default:
+            return 1;
+    }
+}
+
 // Fonction pour initialiser la liste des ports disponibles
 void initialize_ports() {
     available_ports = malloc(sizeof(int) * PORT_RANGE);
@@ -98,8 +111,7 @@ void send_message(res_inscription *i,char *data,int nbfil){
 
     server_message *server_msg = string_to_server_message(buffer);
     request_type codereq = get_codereq_entete(server_msg->entete.val);
-    if(codereq == NONEXISTENT_FIL){
-        printf("Error: the fil you tried to post in doesn't exist.\n");
+    if(!handle_codereq_error(codereq)){
         return;
     }
     printf("Message écrit sur le fil %d\n", ntohs(server_msg->numfil));
@@ -122,8 +134,7 @@ void print_n_tickets(char *server_msg,uint16_t numfil){
     server_message *received_msg = string_to_server_message(server_msg);
     request_type codereq = get_codereq_entete(received_msg->entete.val);
 
-    if(codereq == NONEXISTENT_FIL){
-        printf("Error: the fil you tried to list doesn't exist.\n");
+    if(!handle_codereq_error(codereq)){
         return;
     }
 
@@ -338,8 +349,7 @@ void subscribe_to_fil(uint16_t fil_number) {
 
     server_subscription_message *received_msg = string_to_server_subscription_message(server_msg);
     request_type codereq = get_codereq_entete(received_msg->entete.val);
-    if(codereq == NONEXISTENT_FIL){
-        printf("Error: the fil you tried to subscribe to doesn't exist.\n");
+    if(!handle_codereq_error(codereq)){
         return;
     }
 
@@ -396,7 +406,7 @@ void download_file(int nbfil){
 
     printf("\n\nEnvoi du premier message au serveur\n");
     ssize_t ecrit = send(clientfd, serialized_msg,
-                         sizeof(uint16_t) * 3 + sizeof(char) * (msg->datalen), 0);
+                         CLIENT_MESSAGE_SIZE + DATALEN_SIZE + sizeof(char) * (msg->datalen), 0);
     printf("données envoyées lors du premier message = %zu\n",ecrit);
 
 
@@ -413,7 +423,7 @@ void download_file(int nbfil){
     // reception du message serveur retour (en TCP)
     printf("\n\nRéception du message du serveur\n");
     uint16_t server_msg[3];
-    ssize_t recu = recv_bytes(clientfd,(char*) server_msg, sizeof(uint16_t) * 3);
+    ssize_t recu = recv_bytes(clientfd,(char*) server_msg, SERVER_MESSAGE_SIZE);
 
     if (recu == (size_t) -1) {
         perror("erreur lecture");
@@ -425,8 +435,7 @@ void download_file(int nbfil){
     }
 
     request_type codereq = get_codereq_entete(server_msg[0]);
-    if(codereq == NONEXISTENT_FIL){
-        printf("Error: the fil from which you tried to download a file does not exist.\n");
+    if(!handle_codereq_error(codereq)){
         return;
     }
 
@@ -514,7 +523,7 @@ void add_file(int nbfil) {
 
 
     printf("Envoi du message au serveur\n");
-    ssize_t ecrit = send(clientfd, serialized_msg, sizeof(uint16_t) * 3 + sizeof(char) * (msg->datalen), 0);
+    ssize_t ecrit = send(clientfd, serialized_msg, CLIENT_MESSAGE_SIZE + DATALEN_SIZE + sizeof(char) * (msg->datalen), 0);
 
     if (ecrit == (size_t) -1) {
         perror("Erreur ecriture");
@@ -529,7 +538,7 @@ void add_file(int nbfil) {
     printf("Réception du message du serveur\n");
     // reception du message serveur
     uint16_t server_msg[3];
-    ssize_t recu = recv_bytes(clientfd,(char*)server_msg, sizeof(uint16_t) * 3);
+    ssize_t recu = recv_bytes(clientfd,(char*)server_msg, SERVER_MESSAGE_SIZE);
 
     printf("retour du serveur reçu\n");
     if (recu == (size_t) -1) {
@@ -542,8 +551,7 @@ void add_file(int nbfil) {
     }
 
     request_type codereq = get_codereq_entete(server_msg[0]);
-    if(codereq == NONEXISTENT_FIL){
-        printf("Error: the fil you tried to post in doesn't exist.\n");
+    if(!handle_codereq_error(codereq)){
         return;
     }
 

@@ -61,6 +61,26 @@ void print_inscription_bits(inscription *msg){
     printf("\n");
 }
 
+// on cherche codereq pour creer la structure correspondante et appeler la bonne fonction
+
+client_message *string_to_client_message2(const char *buffer) {
+    client_message *msg = malloc(sizeof(client_message));
+    testMalloc(msg);
+    // Copy entete, numfil, and nb from the buffer
+    memcpy(&(msg->entete.val), buffer, sizeof(uint16_t));
+    memcpy(&(msg->numfil), buffer + sizeof(uint16_t), sizeof(uint16_t));
+    memcpy(&(msg->nb), buffer + sizeof(uint16_t) * 2, sizeof(uint16_t));
+    // Extract datalen from the buffer, located right after nb
+    uint8_t datalen = buffer[sizeof(uint16_t) * 3];
+    // Allocate memory for data
+    msg->data = malloc(sizeof(uint8_t) * (datalen));
+    testMalloc(msg->data);
+    // Copy the data from the buffer, starting after datalen
+    memcpy(msg->data, buffer + sizeof(uint16_t) * 3 + sizeof(uint8_t), sizeof(uint8_t)*(datalen));
+    // Manually set the datalen as the first byte of the data array
+    msg->datalen = datalen;
+    return msg;
+}
 
 client_message *string_to_client_message(const char *buffer) {
     client_message *msg = malloc(sizeof(client_message));
@@ -196,7 +216,7 @@ char *client_message_to_string(client_message *msg) {
     memcpy(buffer + sizeof(uint16_t) * 3, &(msg->datalen), sizeof(uint8_t));
     memcpy(buffer + sizeof(uint16_t) * 3 + sizeof(uint8_t), msg->data, msg->datalen);
 
-    client_message * test = string_to_client_message(buffer);
+    client_message * test = string_to_client_message2(buffer);
     printf("test->entete.val = %d\n", test->entete.val);
     printf("datalen = %d\n",test->datalen);
     printf("test->data = %s\n", test->data);
@@ -447,8 +467,8 @@ void receive_file_udp(char * file_directory, int port, int fil, char * filename)
     // on free les pointeurs
     for (int i = 0; i <= buffer_size; i++) {
         if (received_msgs_buffer[i] != NULL) {
-            free(received_msgs_buffer[i]->data);
-            free(received_msgs_buffer[i]);
+            // free(received_msgs_buffer[i]->data);
+            // free(received_msgs_buffer[i]);
         }
     }
     printf("close socket et received_msgs_buffer\n");

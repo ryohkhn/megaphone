@@ -626,13 +626,23 @@ void add_file(client_message *received_msg, int sock_client) {
 
 }
 
+int verify_user_id(uint16_t id){
+    pthread_mutex_lock(&client_mutex);
+    if(id !=0 && id > id_dernier_client){
+        pthread_mutex_unlock(&client_mutex);
+        return 0;
+    }
+    pthread_mutex_unlock(&client_mutex);
+    return 1;
+}
+
 void *serve(void *arg){
-    // on cherche codereq pour creer la structure correspondante et appeler la bonne fonction
     int sock_client=*((int *) arg);
 
     char *buffer = malloc(HEADER_SIZE);
     testMalloc(buffer);
 
+    // We first get the header sent by the client
     ssize_t read = recv_bytes(sock_client,buffer,HEADER_SIZE);
     if(read<0){
         perror("recv server first header");
@@ -647,6 +657,13 @@ void *serve(void *arg){
     uint16_t header;
     memcpy(&header, buffer, HEADER_SIZE);
     free(buffer);
+
+    uint16_t id_client = get_id_entete(header);
+    if(!verify_user_id(id_client)){
+        printf("A user tried to connect with a non existent ID\n");
+        send_message(NONEXISTENT_ID,0,0,0,sock_client);
+        return NULL;
+    }
 
     request_type codereq = get_codereq_entete(header);
     printf("CODEREQ %d\n",codereq);
