@@ -1,8 +1,9 @@
 #ifndef MEGAPHONE_CLIENT_H
 
 #include "utilities.h"
+#include <sys/stat.h>
 
-#define directory_for_files = "downloaded_files"
+#define directory_for_files "downloaded_files"
 #define PORT 7778
 #define LOCAL_ADDR "::1"
 

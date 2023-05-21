@@ -467,8 +467,8 @@ void receive_file_udp(char * file_directory, int port, int fil, char * filename)
     // on free les pointeurs
     for (int i = 0; i <= buffer_size; i++) {
         if (received_msgs_buffer[i] != NULL) {
-            // free(received_msgs_buffer[i]->data);
-            // free(received_msgs_buffer[i]);
+            //free(received_msgs_buffer[i]->data);
+            //free(received_msgs_buffer[i]);
         }
     }
     printf("close socket et received_msgs_buffer\n");

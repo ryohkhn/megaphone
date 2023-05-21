@@ -379,7 +379,6 @@ void request_threads_list(client_message *msg, int sock_client){
     }
 }
 
-
 void send_fil_notification(uint16_t fil_index) {
     if(fils[fil_index].head == NULL) return;
 

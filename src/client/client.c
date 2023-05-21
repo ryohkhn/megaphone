@@ -1,5 +1,7 @@
 #include "../../include/client.h"
 
+typedef struct uint_8 uint_8;
+
 void print_prompt(){
     printf("> ");
 }
@@ -637,6 +639,15 @@ void run(){
     int choice;
     res_inscription *res_ins = NULL;
     initialize_ports();
+
+    int result = mkdir(directory_for_files, 0777);
+    if (result == 0) {
+        printf("Dossier \"%s\" créé avec succès.\n", directory_for_files);
+    } else if (errno == EEXIST) {
+        printf("Le dossier \"%s\" existe déjà.\n", directory_for_files);
+    } else {
+        perror("Erreur lors de la création du dossier");
+    }
 
     while(1){
         print_ascii();
