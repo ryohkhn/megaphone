@@ -273,7 +273,6 @@ void *listen_multicast_messages(void *arg) {
     struct ipv6_mreq mreq;
     inet_pton (AF_INET6, (char *) multicast_address, &mreq.ipv6mr_multiaddr.s6_addr);
     mreq.ipv6mr_interface = 0; // Let the OS choose the interface
-    printf("%s\n",multicast_address);
     if(setsockopt(sockfd,IPPROTO_IPV6,IPV6_JOIN_GROUP,&mreq,sizeof(mreq))<0){
         perror("Error setsockopt(IPV6_JOIN_GROUP)");
         close(sockfd);
@@ -364,7 +363,6 @@ void subscribe_to_thread(uint16_t thread_number) {
     // Handle the received message
     server_subscription_message *received_msg = string_to_server_subscription_message(server_msg);
     request_type codereq = get_codereq_entete(received_msg->entete.val);
-    printf("Got codereq %d\n", codereq);
     if(!handle_codereq_error(codereq)){
         return;
     }

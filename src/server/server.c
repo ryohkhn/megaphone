@@ -458,8 +458,6 @@ void send_thread_notification(uint16_t fil_index) {
 
     while (current_message != NULL && current_message->msg != NULL && current_message != last_multicasted_message){
         // Send the message
-        printf("DEBUG In boucle %s\n", (char*) fils[fil_index].addrmult);
-
         char *serialized_msg =message_to_notification(current_message->msg,htons(fil_index));
         size_t serialized_msg_size = sizeof(uint8_t) * 34;
 
@@ -579,19 +577,11 @@ void add_subscription_to_thread(client_message *received_msg, int sock_client){
     testMalloc(msg->addrmult);
     memcpy(msg->addrmult,address_str,sizeof(uint8_t)*16);
 
-    for(int i=0; i<16; i++){
-        for(int j=7; j>=0; j--){
-            printf("%d",(msg->addrmult[i]>>j) & 1);
-        }
-        printf("%s",(i<15)?":":"\n");
-    }
-
     // Serialize the server_subscription structure and send to clientfd
     char *serialized_msg=server_subscription_message_to_string(msg);
     size_t serialized_msg_size=sizeof(uint8_t)*22;
 
     ssize_t nboctet=send(sock_client,serialized_msg,serialized_msg_size,0);
-    printf("DEBUG SENT %zd OCTETS\n",nboctet);
     if(nboctet<=0)perror("send");
 }
 
@@ -835,13 +825,12 @@ int main(int argc, char** argv){
         server_addr = LOCAL_ADDR;
         server_port = PORT;
     }
-    else if (argc != 3) {
-        printf("Usage: %s <IP Address> <Port>\nOr: %s to launch locally on the port %d\n", argv[0], argv[0], PORT);
+    else if (argc != 2) {
+        printf("Usage: %s <Port>\nOr: %s to launch locally on the port %d\n", argv[0], argv[0], PORT);
         exit(EXIT_FAILURE);
     }
     else{
-        server_addr = argv[1];
-        server_port = atoi(argv[2]);
+        server_port = atoi(argv[1]);
         if(server_port < 1024 ){
             printf("Please enter a valid port in the range [1024-65535]\n");
             exit(EXIT_FAILURE);
@@ -852,11 +841,8 @@ int main(int argc, char** argv){
     struct sockaddr_in6 address_sock;
     memset(&address_sock,0,sizeof(address_sock));
     address_sock.sin6_family = AF_INET6;
+    address_sock.sin6_addr = in6addr_any;
     address_sock.sin6_port = htons(server_port);
-    if (inet_pton(AF_INET6, server_addr, &(address_sock.sin6_addr)) <= 0) {
-        printf("Unknown address %s.\n Please make sure the address is IPv6 format.\n", server_addr);
-        exit(EXIT_FAILURE);
-    }
 
     //*** creation de la socket ***
     int sock = socket(PF_INET6,SOCK_STREAM,0);
