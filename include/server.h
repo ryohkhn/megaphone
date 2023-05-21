@@ -12,6 +12,7 @@
 // Maximum number of fils possible (2^16 - 1)
 #define MAX_FIL 65536
 #define PORT 7778
+#define LOCAL_ADDR "::"
 #define directory_for_files "fichiers_fil"
 
 // Maximum number of clients possible (2^11 - 1)
@@ -29,6 +30,9 @@ void signal_handler(int signal, siginfo_t *siginfo, void *context) {
     running = 0;
 }
 
+// Adresse et port du serveur
+char *server_addr;
+int server_port;
 
 // Liste des ports disponibles
 int * available_ports;

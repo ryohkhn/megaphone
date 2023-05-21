@@ -598,8 +598,11 @@ void client(){
     struct sockaddr_in address_sock;
     memset(&address_sock,0,sizeof(address_sock));
     address_sock.sin_family = AF_INET;
-    address_sock.sin_port = htons(7778);
-    inet_pton(AF_INET,"localhost",&address_sock.sin_addr);
+    address_sock.sin_port = htons(server_port);
+    if (inet_pton(AF_INET, server_addr, &(address_sock.sin_addr)) <= 0) {
+        printf("Unknown address %s.\n Please make sure the address is IPv6 format.\n", server_addr);
+        exit(EXIT_FAILURE);
+    }
 
     //*** demande de connexion au serveur ***
     int r = connect(fdsock,(struct sockaddr *) &address_sock,sizeof(address_sock));
@@ -752,7 +755,23 @@ void run(){
     }
 }
 
-int main(void){
+int main(int argc, char** argv){
+    if(argc == 1){
+        server_addr = LOCAL_ADDR;
+        server_port = PORT;
+    }
+    else if (argc != 3) {
+        printf("Usage: %s <Server IP address> <Server port>\nOr: %s to launch locally on the port %d\n", argv[0], argv[0], PORT);
+        exit(EXIT_FAILURE);
+    }
+    else{
+        server_addr = argv[1];
+        server_port = atoi(argv[2]);
+        if(server_port < 1024){
+          printf("Please enter a valid port in the range [1024-65535]\n");
+          exit(EXIT_FAILURE);
+        }
+    }
     run();
     return 0;
 }

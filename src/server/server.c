@@ -694,7 +694,6 @@ void *serve(void *arg){
             exit(1);
         }
         else if(read==0){
-            printf("Connexion with server closed");
             close(sock_client);
         }
 
@@ -713,7 +712,6 @@ void *serve(void *arg){
             exit(1);
         }
         else if(read==0){
-            printf("Connexion with server closed");
             close(sock_client);
         }
 
@@ -730,9 +728,7 @@ void *serve(void *arg){
                 exit(1);
             }
             else if(read==0){
-                printf("la connexion a été fermée\n");
                 close(sock_client);
-                printf("Connexion with server closed");
             }
 
             received_msg->data = malloc(sizeof(uint8_t) * datalen);
@@ -856,17 +852,37 @@ void *serve(void *arg){
 */
 
 
-int main(){
+int main(int argc, char** argv){
+    if(argc == 1){
+        server_addr = LOCAL_ADDR;
+        server_port = PORT;
+    }
+    else if (argc != 3) {
+        printf("Usage: %s <IP Address> <Port>\nOr: %s to launch locally on the port %d\n", argv[0], argv[0], PORT);
+        exit(EXIT_FAILURE);
+    }
+    else{
+        server_addr = argv[1];
+        server_port = atoi(argv[2]);
+        if(server_port < 1024 ){
+          printf("Please enter a valid port in the range [1024-65535]\n");
+          exit(EXIT_FAILURE);
+        }
+    }
+
     //*** creation de l'adresse du destinataire (serveur) ***
     struct sockaddr_in6 address_sock;
     memset(&address_sock,0,sizeof(address_sock));
-    address_sock.sin6_family=AF_INET6;
-    address_sock.sin6_port=htons(PORT);
-    address_sock.sin6_addr=in6addr_any;
+    address_sock.sin6_family = AF_INET6;
+    address_sock.sin6_port = htons(server_port);
+    if (inet_pton(AF_INET6, server_addr, &(address_sock.sin6_addr)) <= 0) {
+        printf("Unknown address %s.\n Please make sure the address is IPv6 format.\n", server_addr);
+        exit(EXIT_FAILURE);
+    }
 
     //*** creation de la socket ***
-    int sock=socket(PF_INET6,SOCK_STREAM,0);
-    if(sock<0){
+    int sock = socket(PF_INET6,SOCK_STREAM,0);
+    if(sock < 0){
         perror("creation socket");
         exit(EXIT_FAILURE);
     }
@@ -874,24 +890,24 @@ int main(){
     //*** desactiver l'option n'accepter que de l'IPv6 **
     int optval = 0;
     int r_opt = setsockopt(sock,IPPROTO_IPV6,IPV6_V6ONLY,&optval,sizeof(optval));
-    if(r_opt < 0) perror("erreur connexion IPv4 impossible");
+    if(r_opt < 0) perror("Error while allowing IPv4");
 
     //*** le numero de port peut etre utilise en parallele ***
     optval = 1;
     r_opt = setsockopt(sock,SOL_SOCKET,SO_REUSEADDR,&optval,sizeof(optval));
-    if(r_opt < 0) perror("erreur réutilisation de port impossible");
+    if(r_opt < 0) perror("Error SO_REUSEADDR");
 
     //*** on lie la socket au port ***
     int r = bind(sock,(struct sockaddr *) &address_sock,sizeof(address_sock));
     if(r < 0){
-        perror("erreur bind");
+        perror("Bind error");
         exit(EXIT_FAILURE);
     }
 
     //*** Le serveur est pret a ecouter les connexions sur le port ***
     r = listen(sock,0);
     if(r < 0){
-        perror("erreur listen");
+        perror("Listen error");
         exit(EXIT_FAILURE);
     }
 
@@ -901,7 +917,7 @@ int main(){
     sa.sa_flags = SA_SIGINFO;
 
     if (sigaction(SIGINT, &sa, NULL) < 0) {
-        perror("Erreur d'initialisation de sigaction");
+        perror("Error initialising sigaction");
         exit(EXIT_FAILURE);
     }
 
@@ -953,7 +969,7 @@ int main(){
             }
             //*** affichage de l'adresse du client ***
             char nom_dst[INET6_ADDRSTRLEN];
-            printf("Client connecte : %s %d\n",inet_ntop(AF_INET6,&addrclient.sin6_addr,nom_dst,sizeof(nom_dst)),
+            printf("New client connection : %s %d\n",inet_ntop(AF_INET6,&addrclient.sin6_addr,nom_dst,sizeof(nom_dst)),
                    htons(addrclient.sin6_port));
         }
         else free(sock_client);
@@ -961,7 +977,7 @@ int main(){
     pthread_cancel(notification_thread);
 
     //*** fermeture socket serveur ***
-    printf("Closing sock\n");
+    printf("Closing socket\n");
     close(sock);
 
     free(clients);
