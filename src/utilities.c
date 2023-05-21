@@ -1,8 +1,5 @@
 #include "../include/utilities.h"
 
-//Mutex pour l'envoie d'un fichier (éviter de lire le meme fichier en même temps)
-pthread_mutex_t file_reader_mutex = PTHREAD_MUTEX_INITIALIZER;
-
 void testMalloc(void *ptr){
     if(ptr==NULL){
         free(ptr);
@@ -517,7 +514,6 @@ void send_file_udp(FILE * file, int port, client_message *msg, char * addr_IP) {
 
     printf("\n\ndébut while\n");
     // boucle d'envoie au receveur en udp
-    pthread_mutex_lock(&file_reader_mutex);
     while ((bytes_read = fread(buffer, 1, 512, file)) > 0) {
         printf("Préparation du message UDP\n");
         msg_udp->entete = msg->entete;
@@ -557,7 +553,6 @@ void send_file_udp(FILE * file, int port, client_message *msg, char * addr_IP) {
             break;
         }
     }
-    pthread_mutex_unlock(&file_reader_mutex);
 
     printf("\nNettoyage et fermeture du fichier\n");
     free(msg_udp);
