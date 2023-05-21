@@ -254,10 +254,15 @@ res_inscription* send_inscription(inscription *i){
     return res;
 }
 
+/**
+ * This function listens to multicast messages from a subscribed fil on a separate thread.
+ * It opens a socket, sets up multicast listening and handles the incoming messages.
+ *
+ * @param arg A pointer to a server_subscription_message structure which includes the multicast address and the fil number.
+ */
 void *listen_multicast_messages(void *arg) {
     server_subscription_message *received_msg = (server_subscription_message *)arg;
     uint8_t *multicast_address = received_msg->addrmult;
-
 
     int sockfd = socket(AF_INET6, SOCK_DGRAM, 0);
     if (sockfd < 0) {
@@ -294,7 +299,7 @@ void *listen_multicast_messages(void *arg) {
         return NULL;
     }
 
-
+    // Loop which receives notifications
     while(1){
         char buffer[BUFSIZ];
         struct sockaddr_in6 src_addr;
@@ -323,11 +328,17 @@ void *listen_multicast_messages(void *arg) {
     return NULL;
 }
 
-void subscribe_to_fil(uint16_t fil_number) {
+/**
+ * This function sends a subscribe codereq 4 to the server to subscribe to a particular thread.
+ * If the subscription is successful, a new thread is created to listen to multicast messages from the subscribed fil.
+ *
+ * @param thread_number The number of the thread that the client wants to subscribe to.
+ */
+void subscribe_to_thread(uint16_t thread_number) {
     client_message *msg = malloc(sizeof(client_message));
     testMalloc(msg);
     msg->entete.val = create_entete(SUBSCRIBE,user_id)->val;
-    msg->numfil = htons(fil_number);
+    msg->numfil = htons(thread_number);
 
     ssize_t ecrit = send(clientfd,msg,CLIENT_MESSAGE_SIZE+DATALEN_SIZE,0);
     if(ecrit<=0){
@@ -335,7 +346,7 @@ void subscribe_to_fil(uint16_t fil_number) {
         exit(3);
     }
 
-    // receive response from server with the multicast address
+    // Receive response from server with the multicast address
     char *server_msg = malloc(SERVER_SUBSCRIPTION_SIZE);
     testMalloc(server_msg);
     memset(server_msg,0,SERVER_SUBSCRIPTION_SIZE);
@@ -350,6 +361,7 @@ void subscribe_to_fil(uint16_t fil_number) {
         exit(0);
     }
 
+    // Handle the received message
     server_subscription_message *received_msg = string_to_server_subscription_message(server_msg);
     request_type codereq = get_codereq_entete(received_msg->entete.val);
     printf("Got codereq %d\n", codereq);
@@ -357,14 +369,13 @@ void subscribe_to_fil(uint16_t fil_number) {
         return;
     }
 
-    //  set up a separate thread to listen for messages on the multicast address
+    // Set up a separate thread to listen for messages on the multicast address
     pthread_t notification_thread;
     int rc = pthread_create(&notification_thread, NULL, listen_multicast_messages, (void *)received_msg);
     if (rc != 0) {
         perror("pthread_create");
         exit(1);
     }
-
 }
 
 void download_file(int nbfil){
@@ -731,7 +742,7 @@ void run(){
                 print_prompt();
                 scanf("%d",&nbfil);
 
-                subscribe_to_fil(nbfil);
+                subscribe_to_thread(nbfil);
                 break;
             case UPLOAD_FILE:
                 printf("Please enter the thread:\n");

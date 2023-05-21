@@ -379,7 +379,13 @@ void request_threads_list(client_message *msg, int sock_client){
     }
 }
 
-void send_fil_notification(uint16_t fil_index) {
+/**
+ * This function sends a notification to all subscribers of a particular thread.
+ * It creates a socket, sets up the multicast address and sends all unsent messages in the thread to the subscribers.
+ *
+ * @param thread_index The index of the thread in the threads array from which the messages will be sent.
+ */
+void send_thread_notification(uint16_t fil_index) {
     if(fils[fil_index].head == NULL) return;
 
     // Create a socket for sending multicast notifications
@@ -424,25 +430,26 @@ void send_fil_notification(uint16_t fil_index) {
         }
         current_message = current_message->next;
     }
-    //printf("New last multicasted message: %c\n\n",*(fils[fil_index].last_multicasted_message->msg->data));
+
     if(updated_last_multicasted_message != NULL){
         fils[fil_index].last_multicasted_message = updated_last_multicasted_message;
     }
     close(sockfd);
 }
 
-// Fonction qui vérifie un par un les fils, si il y a besoin d'envoyer
-// des messages (par exemple il y a au moins un abonné et il y a au moins un message),
-// on lance la fonction send_fil_notification
-void *send_notifications(void *arg){
+/**
+ * This function periodically checks each thread and sends notifications for any new messages.
+ * After each check, it sleeps for a predefined interval.
+ */
+void *send_notifications(){
     while(1){
         pthread_mutex_lock(&fil_mutex);
         for(int i=0; i<fils_size; i++){
-            if( fils[i].head!=NULL && fils[i].head->msg!=NULL && fils[i].head != fils[i].last_multicasted_message
+            if(fils[i].head!=NULL && fils[i].head->msg!=NULL && fils[i].head != fils[i].last_multicasted_message
             && fils[i].subscribed>0){
-                // Send notifications for the fil
+                // Send notifications for the thread
                 printf("Sending thread notifification to thread %d subscribers.\n",i);
-                send_fil_notification(i);
+                send_thread_notification(i);
             }
         }
         pthread_mutex_unlock(&fil_mutex);
@@ -451,7 +458,16 @@ void *send_notifications(void *arg){
     return NULL;
 }
 
-void add_subscription_to_fil(client_message *received_msg, int sock_client){
+/**
+ * This function adds a subscription for a client to a specific fil.
+ * It checks whether the thread already has a multicast address or not. If not, it prepares a new one.
+ * Then it locks the thread_mutex to safely add the client's subscription to the thread and increases the subscription counter.
+ * If the thread does not exist, it informs the client about the error.
+ *
+ * @param received_msg A pointer to the client_message structure which includes the thread number the client wants to subscribe to.
+ * @param sock_client The client's socket which is used to send messages back to the client.
+ */
+void add_subscription_to_thread(client_message *received_msg, int sock_client){
     uint16_t numfil = ntohs(received_msg->numfil);
     int id = ntohs(received_msg->entete.val)>>5;
 
@@ -769,7 +785,7 @@ void *serve(void *arg){
                 break;
             case SUBSCRIBE:
                 printf("User wants to join fil %d\n",ntohs(received_msg->numfil));
-                add_subscription_to_fil(received_msg,sock_client);
+                add_subscription_to_thread(received_msg,sock_client);
                 break;
             case UPLOAD_FILE:
                 if(nb!=0)
@@ -883,7 +899,7 @@ int main(int argc, char** argv){
 
     // Start the notification thread
     pthread_t notification_thread;
-    pthread_create(&notification_thread, NULL, send_notifications, (void *)fils);
+    pthread_create(&notification_thread, NULL, send_notifications, NULL);
 
     // create the directory for added files
     int result = mkdir(directory_for_files, 0777);
