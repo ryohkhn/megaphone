@@ -487,7 +487,7 @@ void add_subscription_to_fil(client_message *received_msg, int sock_client){
       ssize_t nboctet=send(sock_client,serialized_msg,serialized_msg_size,0);
       printf("DEBUG SENT %zd OCTETS\n",nboctet);
       if(nboctet<=0)perror("send");
-
+      pthread_mutex_unlock(&fil_mutex);
       return;
     }
     if(strlen(fils[numfil].addrmult)>0){
@@ -500,6 +500,7 @@ void add_subscription_to_fil(client_message *received_msg, int sock_client){
         int multicast_sock;
         if((multicast_sock=socket(AF_INET6,SOCK_DGRAM,0))<0){
             perror("erreur socket");
+            pthread_mutex_unlock(&fil_mutex);
             return;
         }
 
@@ -514,6 +515,7 @@ void add_subscription_to_fil(client_message *received_msg, int sock_client){
         int ifindex=0; //if_nametoindex("eth0");
         if(setsockopt(multicast_sock,IPPROTO_IPV6,IPV6_MULTICAST_IF,&ifindex,sizeof(ifindex))){
             perror("erreur initialisation de l'interface locale");
+            pthread_mutex_unlock(&fil_mutex);
             return;
         }
 
