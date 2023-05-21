@@ -8,11 +8,17 @@ void print_prompt(){
 
 int handle_codereq_error(request_type codereq){
     switch(codereq){
-        case NONEXISTENT_FIL:
-            printf("Error: the fil you tried to post in doesn't exist.\n");
+        case NONEXISTENT_THREAD:
+            printf("Error: the thread you tried to post in doesn't exist.\n");
             return 0;
         case NONEXISTENT_ID:
             printf("Error: your ID doesn't exist on the server.\n");
+            return 0;
+        case ERROR:
+            printf("Error: Internal server error.\n");
+            return 0;
+        case NONEXISTENT_FILE:
+            printf("Error: the file you tried to download does not exist on the server.\n");
             return 0;
         default:
             return 1;
@@ -160,8 +166,7 @@ void print_n_tickets(char *server_msg,uint16_t numfil){
         printf("\n\033[0;31m<%s>\033[0m ",pseudo);
         printf("%s\n",received_billet->data);
 
-        // todo modifier datalen + 1 en datalen ? (puisque datalen = strlen(data) + 1)
-        offset += NUMFIL_SIZE + ORIGINE_SIZE + PSEUDO_SIZE + (sizeof(uint8_t)*(received_billet->datalen+1));
+        offset += NUMFIL_SIZE + ORIGINE_SIZE + PSEUDO_SIZE + DATALEN_SIZE + (sizeof(uint8_t)*(received_billet->datalen));
     }
     printf("\n");
 }

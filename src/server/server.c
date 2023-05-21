@@ -214,7 +214,7 @@ void post_message(client_message *msg,int sock_client){
     else if(numfil>=fils_size){
         printf("Client tried to write to a nonexistent thread\n");
         pthread_mutex_unlock(&fil_mutex);
-        send_message(NONEXISTENT_FIL,0,0,0,sock_client);
+        send_message(NONEXISTENT_THREAD,0,0,0,sock_client);
         return;
     }
 
@@ -349,7 +349,7 @@ void request_threads_list(client_message *msg, int sock_client){
         pthread_mutex_lock(&fil_mutex);
         if(msg_numfil>=fils_size){
             pthread_mutex_unlock(&fil_mutex);
-            send_message(NONEXISTENT_FIL,0,0,0,sock_client);
+            send_message(NONEXISTENT_THREAD,0,0,0,sock_client);
             return;
         }
         nb_fil=fils[msg_numfil].nb_messages;
@@ -471,10 +471,10 @@ void add_subscription_to_fil(client_message *received_msg, int sock_client){
     // Check if fil already has a multicast address
     if(numfil >= fils_size || numfil == 0){
         printf("Client tried to subscribe to a nonexistent fil\n");
-        send_message(NONEXISTENT_FIL,0,0,0,sock_client);
+        send_message(NONEXISTENT_THREAD,0,0,0,sock_client);
         server_subscription_message *msg=malloc(sizeof(server_subscription_message));
         testMalloc(msg);
-        msg->entete.val=create_entete(NONEXISTENT_FIL,0)->val;
+        msg->entete.val=create_entete(NONEXISTENT_THREAD,0)->val;
         msg->addrmult=malloc(sizeof(uint8_t)*16);
         testMalloc(msg->addrmult);
 
@@ -585,7 +585,7 @@ void add_file(client_message *received_msg, int sock_client) {
     else if (received_msg->numfil >= fils_size) {
         printf("Client tried to write to a nonexistent fil\n");
         pthread_mutex_unlock(&fil_mutex);
-        send_message(NONEXISTENT_FIL,0,0,0,sock_client);
+        send_message(NONEXISTENT_THREAD,0,0,0,sock_client);
         return;
     }
     pthread_mutex_unlock(&fil_mutex);
@@ -595,7 +595,7 @@ void add_file(client_message *received_msg, int sock_client) {
 
     printf("Envoi du message avec le port au client\n");
     // envoie message avec le port au client
-    send_message(UPLOAD_FILE, ntohs(received_msg->entete.val) >> 5, port, received_msg->numfil, sock_client);
+    send_message(UPLOAD_FILE, received_msg->entete.val >> 5, port, received_msg->numfil, sock_client);
 
     // on reçoit et on écrit le fichier
     receive_file_udp(directory_for_files, port, received_msg->numfil, (char *)received_msg->data);
@@ -632,7 +632,7 @@ void download_file(client_message *received_msg, int sockclient, char * client_I
         printf("error 1\n");
         printf("Client tried to read to a nonexistent fil\n");
         pthread_mutex_unlock(&fil_mutex);
-        send_message(NONEXISTENT_FIL,0,0,0,sockclient);
+        send_message(NONEXISTENT_THREAD,0,0,0,sockclient);
         return;
     }
     pthread_mutex_unlock(&fil_mutex);
@@ -641,10 +641,6 @@ void download_file(client_message *received_msg, int sockclient, char * client_I
     printf("received_msg->entete.val = %d\n", received_msg->entete.val);
     printf("received_msg->nb = %d\n",received_msg->nb);
     printf("received_msg->numfil = %d\n",received_msg->numfil);
-    // réponse du serveur avec CODEREQ, ID et NUMFIL et NB ayant chacun la même valeur que dans
-    // la requête du client pour signifier qu’il accepte la requête et va procéder au transfert.
-    send_message(DOWNLOAD_FILE,get_id_entete(received_msg->entete.val), received_msg->nb, received_msg->numfil, sockclient);
-
 
     printf("\n\n on ouvre le fichier demandé\n");
     //on ouvre le fichier demandé (stocké dans fichiers_fil)
@@ -653,8 +649,14 @@ void download_file(client_message *received_msg, int sockclient, char * client_I
     printf("file_path = %s\n", file_path);
     if(access(file_path, F_OK) != 0) {   // F_OK vérifie l'existence du fichier
         printf("Le fichier n'existe pas.\n");
+        send_message(NONEXISTENT_FILE,(received_msg->entete.val)>>5, received_msg->nb, received_msg->numfil, sockclient);
         return;
     }
+
+    // réponse du serveur avec CODEREQ, ID et NUMFIL et NB ayant chacun la même valeur que dans
+    // la requête du client pour signifier qu’il accepte la requête et va procéder au transfert.
+    send_message(DOWNLOAD_FILE,(received_msg->entete.val)>>5, received_msg->nb, received_msg->numfil, sockclient);
+
     FILE * file = fopen(file_path, "r");
     if (file == NULL) {
         perror("Erreur d'ouverture du fichier");
@@ -829,8 +831,8 @@ int main(int argc, char** argv){
         server_addr = argv[1];
         server_port = atoi(argv[2]);
         if(server_port < 1024 ){
-          printf("Please enter a valid port in the range [1024-65535]\n");
-          exit(EXIT_FAILURE);
+            printf("Please enter a valid port in the range [1024-65535]\n");
+            exit(EXIT_FAILURE);
         }
     }
 
