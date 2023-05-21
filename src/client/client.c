@@ -349,6 +349,7 @@ void subscribe_to_fil(uint16_t fil_number) {
 
     server_subscription_message *received_msg = string_to_server_subscription_message(server_msg);
     request_type codereq = get_codereq_entete(received_msg->entete.val);
+    printf("Got codereq %d\n", codereq);
     if(!handle_codereq_error(codereq)){
         return;
     }
@@ -597,7 +598,7 @@ void client(){
     struct sockaddr_in address_sock;
     memset(&address_sock,0,sizeof(address_sock));
     address_sock.sin_family = AF_INET;
-    address_sock.sin_port = htons(7777);
+    address_sock.sin_port = htons(7778);
     inet_pton(AF_INET,"localhost",&address_sock.sin_addr);
 
     //*** demande de connexion au serveur ***

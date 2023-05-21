@@ -471,9 +471,23 @@ void add_subscription_to_fil(client_message *received_msg, int sock_client){
 
     pthread_mutex_lock(&fil_mutex);
     // Check if fil already has a multicast address
-    if(numfil >= fils_size){
+    if(numfil >= fils_size || numfil == 0){
       printf("Client tried to subscribe to a nonexistent fil\n");
       send_message(NONEXISTENT_FIL,0,0,0,sock_client);
+      server_subscription_message *msg=malloc(sizeof(server_subscription_message));
+      testMalloc(msg);
+      msg->entete.val=create_entete(NONEXISTENT_FIL,0)->val;
+      msg->addrmult=malloc(sizeof(uint8_t)*16);
+      testMalloc(msg->addrmult);
+
+      // Serialize the server_subscription structure and send to clientfd
+      char *serialized_msg=server_subscription_message_to_string(msg);
+      size_t serialized_msg_size=sizeof(uint8_t)*22;
+
+      ssize_t nboctet=send(sock_client,serialized_msg,serialized_msg_size,0);
+      printf("DEBUG SENT %zd OCTETS\n",nboctet);
+      if(nboctet<=0)perror("send");
+
       return;
     }
     if(strlen(fils[numfil].addrmult)>0){

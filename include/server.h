@@ -11,7 +11,7 @@
 
 // Maximum number of fils possible (2^16 - 1)
 #define MAX_FIL 65536
-#define PORT 7777
+#define PORT 7778
 #define directory_for_files "fichiers_fil"
 
 // Maximum number of clients possible (2^11 - 1)
