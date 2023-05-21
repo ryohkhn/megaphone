@@ -17,18 +17,18 @@ void initialize_ports() {
  * @return The allocated port number.
  */
  uint16_t allocate_port() {
-    int allocated_port = -1;
-    pthread_mutex_lock(&port_mutex);
-    for (int i = 0; i < PORT_RANGE; i++) {
-        if (available_ports[i] != -1) {
-            allocated_port = available_ports[i];
-            available_ports[i] = -1;
-            break;
-        }
-    }
-    pthread_mutex_unlock(&port_mutex);
-    printf("allocated_port = %d\n", allocated_port);
-    return allocated_port;
+     int allocated_port = -1;
+     pthread_mutex_lock(&port_mutex);
+     for (int i = 0; i < PORT_RANGE; i++) {
+         if (available_ports[i] != -1) {
+             allocated_port = available_ports[i];
+             available_ports[i] = -1;
+             break;
+         }
+     }
+     pthread_mutex_unlock(&port_mutex);
+     printf("allocated_port = %d\n", allocated_port);
+     return allocated_port;
 }
 
 /**
@@ -36,11 +36,11 @@ void initialize_ports() {
  * @param port The port to be released.
  */
  void release_port(int port) {
-    if (port >= MIN_PORT && port <= MAX_PORT) {
-        pthread_mutex_lock(&port_mutex);
-        available_ports[port - MIN_PORT] = port;
-        pthread_mutex_unlock(&port_mutex);
-    }
+     if (port >= MIN_PORT && port <= MAX_PORT) {
+         pthread_mutex_lock(&port_mutex);
+         available_ports[port - MIN_PORT] = port;
+         pthread_mutex_unlock(&port_mutex);
+     }
 }
 
 /**
@@ -163,6 +163,7 @@ void inscription_client(char * pseudo, int sock_client){
     pthread_mutex_lock(&client_mutex);
     list_client * current_client = clients;
     id_dernier_client += 1;
+    // We initialize the first client
     if(current_client == NULL){
         current_client = malloc(sizeof(list_client));
         testMalloc(current_client);
@@ -173,17 +174,17 @@ void inscription_client(char * pseudo, int sock_client){
         printf("Created first client with pseudo: %s and id: %ld\n", current_client->pseudo, current_client->id);
     }
     else {
-        // on va au dernier client de la liste
+        // We go to the last client of the list
         while (current_client->suivant != NULL) {
             current_client = current_client->suivant;
         }
 
-        // on crée le suivant
+        // We create the next client
         current_client->suivant = malloc(sizeof(list_client));
         testMalloc(current_client->suivant);
         current_client = current_client->suivant;
 
-        // on modifie le suivant
+        // We modify the next client
         current_client->id = id_dernier_client;
         current_client->pseudo = malloc(sizeof(char) * (strlen(pseudo) + 1));
         testMalloc(current_client->pseudo);
@@ -193,10 +194,16 @@ void inscription_client(char * pseudo, int sock_client){
     }
     pthread_mutex_unlock(&client_mutex);
 
-    // on envoie le message de l'inscription
+    // We send the register message
     send_message(REGISTER, current_client->id, 0, 0, sock_client);
 }
 
+/**
+ * Add a message to a thread
+ * @param msg the message to add
+ * @param fil_number the thread number
+ * @param isFile
+ */
 void add_message_to_fil(client_message *msg, uint16_t fil_number, int isFile) {
     fil* current_fil = &fils[fil_number];
     current_fil->nb_messages++;
@@ -217,38 +224,22 @@ void add_message_to_fil(client_message *msg, uint16_t fil_number, int isFile) {
     current_fil->head = new_node;
 }
 
-char **retrieve_messages_from_fil(uint16_t fil_number) {
-    pthread_mutex_lock(&fil_mutex);
-    fil *current_fil = &fils[fil_number];
-
-    message_node *current = current_fil->head;
-    char **messages = malloc(sizeof(char *) * 1024);
-    testMalloc(messages);
-    int index = 0;
-    while (current != NULL && current->msg != NULL) {
-        messages[index] = strdup((char *)(current->msg->data));
-        index++;
-        current = current->next;
-    }
-    pthread_mutex_unlock(&fil_mutex);
-    messages[index] = NULL; // Add NULL at the end of the messages array
-    return messages;
-}
-
+/**
+ * This function stores the received message into the thread
+ * @param msg the message to store
+ * @param sock_client the client socket
+ */
 void post_message(client_message *msg,int sock_client){
     uint16_t id = get_id_entete(msg->entete.val);
 
     printf("Received message from user with id %d, to post to numfil %d\n",id,ntohs(msg->numfil));
-    printf("The message is: %s\n",(char *) (msg->data));
 
     uint16_t numfil=ntohs(msg->numfil);
-    printf("Numfil reçu: %d\n",numfil);
 
     pthread_mutex_lock(&fil_mutex);
     if(numfil==0){
         add_new_fil(pseudo_from_id(id));
         numfil=fils_size-1;
-        // pthread_mutex_unlock(&fil_mutex);
         printf("Found empty thread: %d\n",numfil);
     }
     else if(numfil>=fils_size){
@@ -260,14 +251,6 @@ void post_message(client_message *msg,int sock_client){
 
     add_message_to_fil(msg,numfil, 0);
     pthread_mutex_unlock(&fil_mutex);
-
-    //TEST print all messages in the fil after adding the new one
-    char **res=retrieve_messages_from_fil(numfil);
-    int i=0;
-    while(res[i]!=NULL){
-        printf("Message %d: %s\n",i+1,res[i]);
-        i++;
-    }
 
     // Sending response to client
     send_message(POST_MESSAGE,id,0,numfil,sock_client);
@@ -670,6 +653,11 @@ void download_file(client_message *received_msg, int sockclient, char * client_I
     fclose(file);
 }
 
+/**
+ * Verify that an id exists
+ * @param id the id to check
+ * @return boolean
+ */
 int verify_user_id(uint16_t id){
     pthread_mutex_lock(&client_mutex);
     if(id !=0 && id > id_dernier_client){
@@ -680,6 +668,11 @@ int verify_user_id(uint16_t id){
     return 1;
 }
 
+/**
+ * Main thread function for the server, handles the first client receive and then call each function for a specific CODEREQ
+ * @param arg the client socket in a pointer
+ * @return
+ */
 void *serve(void *arg){
     thread_args *args = (thread_args *)arg;
     int sock_client = *(args->sock_client);

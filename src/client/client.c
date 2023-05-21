@@ -83,6 +83,12 @@ inscription *create_inscription(char pseudo[]){
     return inscription_message;
 }
 
+/**
+ * Function to send a message
+ * @param i
+ * @param data
+ * @param nbfil
+ */
 void send_message(res_inscription *i,char *data,int nbfil){
     client_message *msg = malloc(sizeof(client_message));
     testMalloc(msg);
@@ -131,6 +137,11 @@ void send_message(res_inscription *i,char *data,int nbfil){
     printf("Message has been posted on the thread %d\n", ntohs(server_msg->numfil));
 }
 
+/**
+ * Get a pseudo with no hashtag
+ * @param pseudo
+ * @return
+ */
 char* pseudo_nohashtags(uint8_t* pseudo){
     int len = 10;
     while (len > 0 && pseudo[len-1] == '#')
@@ -144,6 +155,11 @@ char* pseudo_nohashtags(uint8_t* pseudo){
     return str;
 }
 
+/**
+ * Function to print n tickets after receiving them
+ * @param server_msg the received server message
+ * @param numfil the numfil
+ */
 void print_n_tickets(char *server_msg,uint16_t numfil){
     server_message *received_msg = string_to_server_message(server_msg);
     request_type codereq = get_codereq_entete(received_msg->entete.val);
@@ -187,6 +203,12 @@ void print_n_tickets(char *server_msg,uint16_t numfil){
     printf("\n");
 }
 
+/**
+ * Function to request n tickets to the server
+ * @param i the registre structure
+ * @param numfil the numfil
+ * @param n
+ */
 void request_n_tickets(res_inscription *i,uint16_t numfil,uint16_t n){
     client_message *msg = malloc(sizeof(client_message));
     testMalloc(msg);
@@ -201,7 +223,6 @@ void request_n_tickets(res_inscription *i,uint16_t numfil,uint16_t n){
         perror("Error send");
         return;
     }
-    printf("Message envoyé au serveur.\n");
 
     ssize_t buffer_size = BUFSIZ;
     char *buffer = malloc(sizeof(char)*BUFSIZ);
@@ -217,6 +238,11 @@ void request_n_tickets(res_inscription *i,uint16_t numfil,uint16_t n){
     print_n_tickets(buffer,numfil);
 }
 
+/**
+ * Sends the register structure to the server
+ * @param i
+ * @return
+ */
 res_inscription* send_inscription(inscription *i){
     for(int j=0; j<10; ++j){
         printf("%c\n",i->pseudo[j]);

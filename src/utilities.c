@@ -384,7 +384,7 @@ void receive_file_udp(char * file_directory, int port, int fil, char * filename)
 }
 
 /**
- * function that send the file in UDP
+ * Function that send the file in UDP
  * @param file the file which is sent
  * @param port listening port
  * @param msg client message
