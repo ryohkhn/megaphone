@@ -295,7 +295,7 @@ void receive_file_udp(char * file_directory, int port, int fil, char * filename)
     printf("fil = %d\n",fil);
 
     printf("Création du socket UDP\n");
-    // création socket UDP IPV4
+    // socket UDP
     int sock_udp = socket(PF_INET6, SOCK_DGRAM, 0);
     if (sock_udp < 0) {
         perror("socket UDP");
@@ -478,7 +478,7 @@ void receive_file_udp(char * file_directory, int port, int fil, char * filename)
 
 }
 
-void send_file_udp(FILE * file, int port, client_message *msg) {
+void send_file_udp(FILE * file, int port, client_message *msg, char * addr_IP) {
     msg->numfil = ntohs(msg->numfil);
     printf("\n\nboucle envoie udp\n\n");
     printf("FILE = %p\n", file);

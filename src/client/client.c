@@ -568,7 +568,7 @@ void add_file(int nbfil) {
     printf("\n\nappel a boucle envoie udp\n");
     // appel a boucle envoie udp avec en argument ->
     // le FILE, le port, le message du client (UNIQUEMENT pour l'entete)
-    send_file_udp(file,server_msg[2], msg);
+    send_file_udp(file,server_msg[2], msg, server_addr);
 
     // nettoyage et free
     free(filename);

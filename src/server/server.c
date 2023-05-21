@@ -177,7 +177,6 @@ void add_message_to_fil(client_message *msg, uint16_t fil_number, int isFile) {
     current_fil->head = new_node;
 }
 
-
 char **retrieve_messages_from_fil(uint16_t fil_number) {
     pthread_mutex_lock(&fil_mutex);
     fil *current_fil = &fils[fil_number];
@@ -564,11 +563,22 @@ void add_subscription_to_fil(client_message *received_msg, int sock_client){
     if(nboctet<=0)perror("send");
 }
 
-void download_file(client_message * received_msg, int sockclient) {
+void download_file(client_message *received_msg, int sockclient, char * client_IP) {
+    printf("message initial\n");
+    printf("received_msg->entete.val = %d\n", received_msg->entete.val);
+    printf("received_msg->nb = %d\n",received_msg->nb);
+    printf("received_msg->numfil = %d\n",received_msg->numfil);
+    printf("received_msg->datalen = %d\n",received_msg->datalen);
+    printf("received_msg->data = %s\n", received_msg->data);
+    received_msg->numfil = ntohs(received_msg->numfil);
+    received_msg->nb = ntohs(received_msg->nb);
+    received_msg->entete.val = ntohs(received_msg->entete.val);
+
     // on fait les vérifications de pour ajouter un billet à un fil
     // TODO NTOHS received_msg->numfil
     pthread_mutex_lock(&fil_mutex);
     if (received_msg->numfil == 0 || received_msg->numfil >= fils_size) {
+        printf("error 1\n");
         printf("Client tried to read to a nonexistent fil\n");
         pthread_mutex_unlock(&fil_mutex);
         send_message(NONEXISTENT_FIL,0,0,0,sockclient);
@@ -577,8 +587,8 @@ void download_file(client_message * received_msg, int sockclient) {
     printf("downloaded_files\n");
     printf("\n\nenvoie 1ere réponse au client:\n");
     printf("received_msg->entete.val = %d\n", received_msg->entete.val);
-    printf("received_msg->datalen = %d\n",received_msg->datalen);
-    printf("received_msg->data = %s\n", received_msg->data);
+    printf("received_msg->nb = %d\n",received_msg->nb);
+    printf("received_msg->numfil = %d\n",received_msg->numfil);
     // réponse du serveur avec CODEREQ, ID et NUMFIL et NB ayant chacun la même valeur que dans
     // la requête du client pour signifier qu’il accepte la requête et va procéder au transfert.
     send_message(DOWNLOAD_FILE,get_id_entete(received_msg->entete.val), received_msg->nb, received_msg->numfil, sockclient);
@@ -587,7 +597,7 @@ void download_file(client_message * received_msg, int sockclient) {
     printf("\n\n on ouvre le fichier demandé\n");
     //on ouvre le fichier demandé (stocké dans fichiers_fil)
     char file_path[512];
-    snprintf(file_path, sizeof(file_path), "%s/%d_%s", directory_for_files, ntohs(received_msg->numfil), received_msg->data);
+    snprintf(file_path, sizeof(file_path), "%s/%d_%s", directory_for_files, received_msg->numfil, received_msg->data);
     printf("file_path = %s\n", file_path);
     if(access(file_path, F_OK) != 0) {   // F_OK vérifie l'existence du fichier
         printf("Le fichier n'existe pas.\n");
@@ -602,7 +612,7 @@ void download_file(client_message * received_msg, int sockclient) {
     printf("\n\nappel boucle envoie udp \n\n");
     // appelle a la boucle qui envoie le message en UDP
     // arguments -> le FILE, le port, le message du client initial (pour l'entete UNIQUEMENT)
-    send_file_udp(file,ntohs(received_msg->nb), received_msg);
+    send_file_udp(file,received_msg->nb, received_msg, client_IP);
 
     // nettoyage et free
     fclose(file);
@@ -663,7 +673,9 @@ int verify_user_id(uint16_t id){
 }
 
 void *serve(void *arg){
-    int sock_client=*((int *) arg);
+    thread_args *args = (thread_args *)arg;
+    int sock_client = *(args->sock_client);
+    char * client_ip = args->client_ip;
 
     char *buffer = malloc(HEADER_SIZE);
     testMalloc(buffer);
@@ -775,8 +787,8 @@ void *serve(void *arg){
                     add_file(received_msg,sock_client);
                 break;
             case DOWNLOAD_FILE:
-                download_file(received_msg, sock_client);
-                printf("on quite le download file\n");
+                download_file(received_msg, sock_client, client_ip);
+                printf("on quitte le download file\n");
                 break;
             default:
                 perror("Server codereq selection");
@@ -792,7 +804,6 @@ void *serve(void *arg){
 
     return NULL;
 }
-
 /*
 void *serve(void *arg){
     // on cherche codereq pour creer la structure correspondante et appeler la bonne fonction
@@ -974,10 +985,20 @@ int main(int argc, char** argv){
         //*** le serveur accepte une connexion et initialise le socket de communication avec le client ***
         *sock_client = accept(sock,(struct sockaddr *) &addrclient,&size);
 
+        //*** on récupère l'adresse IP du client ***
+        char client_ip[INET6_ADDRSTRLEN];
+        inet_ntop(AF_INET6, &(addrclient.sin6_addr), client_ip, INET6_ADDRSTRLEN);
+
+        //*** on stocke l'adresse IP et le socket dans une structure
+        thread_args *args = malloc(sizeof(thread_args));
+        testMalloc(args);
+        args->sock_client = sock_client;
+        strcpy(args->client_ip, client_ip);
+
         if(sock_client>=0){
             pthread_t thread;
             //*** le serveur cree un thread et passe un pointeur sur socket client à la fonction serve ***
-            if(pthread_create(&thread,NULL,serve,sock_client)==-1){
+            if(pthread_create(&thread,NULL,serve,args)==-1){
                 perror("pthread_create");
                 continue;
             }

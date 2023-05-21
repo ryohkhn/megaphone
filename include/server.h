@@ -49,6 +49,11 @@ pthread_mutex_t client_mutex = PTHREAD_MUTEX_INITIALIZER;
 // Mutex pour la taille de la liste de threads
 pthread_mutex_t thread_size_mutex = PTHREAD_MUTEX_INITIALIZER;
 
+typedef struct thread_args {
+    int *sock_client;
+    char client_ip[INET6_ADDRSTRLEN];
+} thread_args;
+
 #define MEGAPHONE_SERVER_H
 
 #endif //MEGAPHONE_SERVER_H

@@ -161,7 +161,7 @@ uint16_t chars_to_uint16(char a,char b);
 long size_file(FILE *file);
 
 void receive_file_udp(char * file_directory, int port, int fil, char * filename);
-void send_file_udp(FILE * file, int port, client_message *msg);
+void send_file_udp(FILE * file, int port, client_message *msg, char * addr_IP);
 
 ssize_t recv_bytes(int sockfd, char *buf, ssize_t len);
 ssize_t recv_unlimited_bytes(int sockfd, char* buf, ssize_t buffer_size);
