@@ -119,7 +119,6 @@ void send_message(res_inscription *i,char *data,int nbfil){
     memset(buffer,0,SERVER_MESSAGE_SIZE);
     ssize_t read = recv_bytes(clientfd,buffer,SERVER_MESSAGE_SIZE);
 
-    printf("receive server return\n");
     if(read < 0){
         perror("Error recv");
         exit(4);
@@ -134,7 +133,7 @@ void send_message(res_inscription *i,char *data,int nbfil){
     if(!handle_codereq_error(codereq)){
         return;
     }
-    printf("Message has been posted on the thread %d\n", ntohs(server_msg->numfil));
+    printf("\nMessage has been posted on the thread %d\n", ntohs(server_msg->numfil));
 }
 
 /**
@@ -173,11 +172,11 @@ void print_n_tickets(char *server_msg,uint16_t numfil){
     size_t offset = SERVER_MESSAGE_SIZE;
 
     if(numfil == 0){
-        printf("Number of threads to print: %d\n",nb_fil_serv);
+        printf("\nNumber of threads to print: %d\n",nb_fil_serv);
         printf("Total number of messages to print: %d\n",nb_serv);
     }
     else{
-        printf("Printed thread: %d\n",nb_fil_serv);
+        printf("\nPrinted thread: %d\n",nb_fil_serv);
         printf("Number of messages to print: %d\n",nb_serv);
     }
 
@@ -244,15 +243,12 @@ void request_n_tickets(res_inscription *i,uint16_t numfil,uint16_t n){
  * @return
  */
 res_inscription* send_inscription(inscription *i){
-    for(int j=0; j<10; ++j){
-        printf("%c\n",i->pseudo[j]);
-    }
     ssize_t ecrit = send(clientfd,i,REGISTER_SIZE,0);
     if(ecrit<=0){
         perror("erreur ecriture");
         exit(3);
     }
-    printf("demande d'inscription envoyée\n");
+    printf("\nRegister request sent to server\n");
 
     char *buffer = malloc(SERVER_MESSAGE_SIZE);
     testMalloc(buffer);
@@ -260,7 +256,7 @@ res_inscription* send_inscription(inscription *i){
 
     //*** message reception ***
     ssize_t read = recv_bytes(clientfd,buffer,SERVER_MESSAGE_SIZE);
-    printf("retour du serveur reçu\n");
+    printf("Received server response request\n");
     if(read<0){
         perror("Recv error in the send inscription function");
         exit(4);
@@ -705,7 +701,7 @@ void run(){
                 res_ins = inscription_client(pseudo);
                 if(res_ins == NULL) exit(4);
                 user_id = res_ins->id;
-                printf("id: %d\n",res_ins->id);
+                printf("Assignated id: %d\n\n",res_ins->id);
                 break;
             case POST_MESSAGE:
                 printf("Please enter the thread (0 for a new thread):\n");
@@ -720,7 +716,6 @@ void run(){
                 if (read != -1) {
                     // Remove the newline character from the end of the line
                     response[strcspn(response, "\n")] = '\0';
-                    printf("NBFIL: %d\nInput: %s\n", nbfil, response);
                 }
                 else {
                     perror("getline() failed\n");
