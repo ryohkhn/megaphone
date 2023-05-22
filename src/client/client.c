@@ -6,6 +6,10 @@ void print_prompt(){
     printf("> ");
 }
 
+/*
+* Function to match integer to request_type
+* @return the corresponding request_type
+*/
 int handle_codereq_error(request_type codereq){
     switch(codereq){
         case NONEXISTENT_THREAD:
@@ -137,9 +141,9 @@ void send_message(res_inscription *i,char *data,int nbfil){
 }
 
 /**
- * Get a pseudo with no hashtag
- * @param pseudo
- * @return
+ * Get a username with no hashtag
+ * @param username
+ * @return username without hashtags
  */
 char* pseudo_nohashtags(uint8_t* pseudo){
     int len = 10;
@@ -187,7 +191,7 @@ void print_n_tickets(char *server_msg,uint16_t numfil){
         for(int i=0; i<nb_serv; i++){
             server_billet *received_billet = string_to_server_billet(server_msg+offset);
             uint16_t fil = ntohs(received_billet->numfil);
-            printf("\nFil %d\n",fil);
+            printf("\nThread %d\n",fil);
             if(fil!=0){
                 char* originaire=pseudo_nohashtags(received_billet->origine);
                 printf("Originaire du fil: %s\n",originaire);
@@ -208,13 +212,13 @@ void print_n_tickets(char *server_msg,uint16_t numfil){
  * @param numfil the numfil
  * @param n
  */
-void request_n_tickets(res_inscription *i,uint16_t numfil,uint16_t n){
+void request_n_tickets(res_inscription *i,uint16_t numfil,uint16_t nb){
     client_message *msg = malloc(sizeof(client_message));
     testMalloc(msg);
 
     msg->entete.val = create_entete(LIST_MESSAGES,i->id)->val;
     msg->numfil = htons(numfil);
-    msg->nb = htons(n);
+    msg->nb = htons(nb);
     msg->datalen = 0;
 
     ssize_t ecrit = send(clientfd,msg,CLIENT_MESSAGE_SIZE+DATALEN_SIZE,0);
@@ -340,7 +344,7 @@ void *listen_multicast_messages(void *arg) {
         notification *notification = string_to_notification(buffer);
 
         // Process the received message
-        printf("\n\nNew post in the fil %d!\n",ntohs(notification->numfil));
+        printf("\n\nNew post in the thread %d!\n",ntohs(notification->numfil));
         char *pseudo = pseudo_nohashtags(notification->pseudo);
         printf("\033[0;31m<%s>\033[0m ",pseudo);
         printf("%s",notification->data);
@@ -436,8 +440,7 @@ void download_file(int nbfil){
     char *serialized_msg = client_message_to_string(msg);
 
     printf("sending the client message to server\n");
-    ssize_t ecrit = send(clientfd, serialized_msg,
-                         CLIENT_MESSAGE_SIZE + DATALEN_SIZE + sizeof(char) * (msg->datalen), 0);
+    ssize_t ecrit = send(clientfd, serialized_msg, CLIENT_MESSAGE_SIZE + DATALEN_SIZE + sizeof(char) * (msg->datalen), 0);
 
     //free
     free(serialized_msg);
@@ -529,7 +532,7 @@ void add_file(int nbfil) {
     }
 
     // we build and send the message to the server
-    uint8_t datalen = strlen(filename) + 1; // + 1 pour le '\0'
+    uint8_t datalen = strlen(filename) + 1; // + 1 for the NULL character
     msg->datalen = datalen;
     msg->data = malloc(sizeof(char) * (datalen));
     testMalloc(msg->data);
@@ -699,9 +702,9 @@ void run(){
                     break;
                 }
                 res_ins = inscription_client(pseudo);
-                if(res_ins == NULL) exit(4);
+                if(res_ins == NULL) exit(EXIT_FAILURE);
                 user_id = res_ins->id;
-                printf("Assignated id: %d\n\n",res_ins->id);
+              printf("Assigned id: %d\n\n",res_ins->id);
                 break;
             case POST_MESSAGE:
                 printf("Please enter the thread (0 for a new thread):\n");

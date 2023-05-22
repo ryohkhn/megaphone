@@ -9,6 +9,6 @@ Pour lancer le serveur:
 `./build/server [Server port]`
 
 Les fichiers uploadé dans le serveur seront placés dans ./fichiers_fil
-
 Les fichiers téléchargés depuis le client seront placés dans ./downloaded_files
+
 Lancé sans argument, notre serveur Megaphone tourne sur le port 7777 (configurable depuis `server.h` et `client.h`)

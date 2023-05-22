@@ -444,6 +444,7 @@ void send_thread_notification(uint16_t fil_index) {
         if (sendto(sockfd, serialized_msg, serialized_msg_size, 0, (struct sockaddr *)&dest_addr, sizeof(dest_addr)) < 0) {
             perror("sendto");
         }
+        printf("Sent [%s] notification to thread %d.\n",current_message->msg->data, fil_index);
         if(updated_last_multicasted_message == NULL){
             updated_last_multicasted_message = current_message;
         }
@@ -467,7 +468,7 @@ void *send_notifications(){
             if(fils[i].head!=NULL && fils[i].head->msg!=NULL && fils[i].head != fils[i].last_multicasted_message
             && fils[i].subscribed>0){
                 // Send notifications for the thread
-                printf("Sending thread notifification to thread %d subscribers.\n",i);
+                printf("Sending thread notification to thread %d subscribers.\n",i);
                 send_thread_notification(i);
             }
         }
@@ -791,7 +792,6 @@ void *serve(void *arg){
                 break;
             case DOWNLOAD_FILE:
                 download_file(received_msg,sock_client,client_ip);
-                // printf("on quitte le download file\n");
                 break;
             default:
                 perror("Server codereq selection");
