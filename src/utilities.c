@@ -242,7 +242,6 @@ long size_file(FILE *file) {
  */
 void receive_file_udp(char * file_directory, int port, int fil, char * filename){
 
-    printf("\nBuilding the UDP socket\n");
     // socket UDP
     int sock_udp = socket(PF_INET6, SOCK_DGRAM, 0);
     if (sock_udp < 0) {
@@ -250,7 +249,6 @@ void receive_file_udp(char * file_directory, int port, int fil, char * filename)
         return;
     }
 
-    printf("Timeout configuration\n");
     // set the timeout for recvfrom to 30 seconds
     struct timeval timeout;
     timeout.tv_sec = 30;
@@ -267,7 +265,6 @@ void receive_file_udp(char * file_directory, int port, int fil, char * filename)
     }
 
     // configuration of the receiver's address
-    printf("Configuration of the receiver address\n");
     struct sockaddr_in6 addr_receveur;
     memset(&addr_receveur, 0, sizeof(addr_receveur));
     addr_receveur.sin6_family = AF_INET6;
@@ -297,14 +294,12 @@ void receive_file_udp(char * file_directory, int port, int fil, char * filename)
     testMalloc(received_msgs_buffer);
     // loop to listen to messages in udp
     while(1){
-        printf("Waiting for data\n");
         // listening...
+        printf("Receiving the UDP message ");
         bytes_read = recvfrom(sock_udp, recv_buffer, sizeof(char) * 512 + sizeof(u_int16_t) * 2, 0, (struct sockaddr *)&addr_envoyeur, &addr_len);
-        printf("Received data : %zu\n", bytes_read);
 
         // we check that recvfrom has timeout / the transmission is finished
         if (bytes_read == 0) {
-            printf("end transmission\n");
             break;
         }
         else{
@@ -339,7 +334,6 @@ void receive_file_udp(char * file_directory, int port, int fil, char * filename)
         memcpy(received_msg_udp->data, recv_buffer + sizeof(uint16_t) * 2, sizeof(char) * bytes_read - sizeof(uint16_t) * 2);
 
         // management of the case of disorder in the packages and writing in the file
-        printf("management of disorder in the packets and writing in the file");
         if (received_msg_udp->numbloc == packet_num + 1) {
             // if the packet that arrives is the right one (following the last one written)
             // we write it to its destination
@@ -364,6 +358,7 @@ void receive_file_udp(char * file_directory, int port, int fil, char * filename)
             received_msgs_buffer[received_msg_udp->numbloc] = received_msg_udp;
             buffer_size = (received_msg_udp->numbloc > buffer_size) ? received_msg_udp->numbloc : buffer_size;
         }
+        printf("packet n°%d (sent %zu bytes)\n",packet_num,bytes_read);
 
         // free
         free(received_msg_udp->data);
@@ -375,6 +370,7 @@ void receive_file_udp(char * file_directory, int port, int fil, char * filename)
         }
 
     }
+    printf("Transmission has ended\n\n");
     // close
     if (file != NULL) {
         fclose(file);
@@ -407,7 +403,6 @@ void send_file_udp(FILE * file, int port, client_message *msg, char * addr_IP) {
     }
 
     // Configuration of the receiver address
-    printf("receiver address configuration\n");
     struct sockaddr_in6 addr;
     memset(&addr, 0, sizeof(addr));
     addr.sin6_family = AF_INET6;
@@ -433,7 +428,6 @@ void send_file_udp(FILE * file, int port, client_message *msg, char * addr_IP) {
 
     // send loop to receiver in udp
     while ((bytes_read = fread(buffer, 1, 512, file)) > 0) {
-        printf("\nPreparation of the UDP message\n");
         msg_udp->entete = msg->entete;
         msg_udp->numbloc = packet_num;
         msg_udp->data = malloc(sizeof(char) * bytes_read);
@@ -448,11 +442,11 @@ void send_file_udp(FILE * file, int port, client_message *msg, char * addr_IP) {
         memcpy(serialize_buffer + sizeof(uint16_t), &(msg_udp->numbloc), sizeof(uint16_t));
         memcpy(serialize_buffer + sizeof(uint16_t) * 2, msg_udp->data, bytes_read);
 
-        printf("Sending the UDP message\n");
+        printf("Sending the UDP message ");
         ssize_t bytes_sent = sendto(sock_udp, serialize_buffer, serialize_buf_size, 0, (struct sockaddr *)&addr, len_addr);
 
         nanosleep(&pause, NULL);
-        printf("sent data = %zu\n", bytes_sent);
+        printf("packet n°%d (sent %zu bytes)\n",packet_num,bytes_sent);
 
         packet_num += 1;
         free(serialize_buffer);
@@ -462,6 +456,7 @@ void send_file_udp(FILE * file, int port, client_message *msg, char * addr_IP) {
             break;
         }
     }
+    printf("Transmission has ended\n\n");
     free(msg_udp);
     close(sock_udp);
 }

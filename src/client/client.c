@@ -13,16 +13,16 @@ void print_prompt(){
 int handle_codereq_error(request_type codereq){
     switch(codereq){
         case NONEXISTENT_THREAD:
-            printf("Error: the thread doesn't exist.\n");
+            printf("\nError: the thread doesn't exist.\n\n");
             return 0;
         case NONEXISTENT_ID:
-            printf("Error: your ID doesn't exist on the server.\n");
+            printf("\nError: your ID doesn't exist on the server.\n\n");
             return 0;
         case ERROR:
-            printf("Error: internal server error.\n");
+            printf("\nError: internal server error.\n\n");
             return 0;
         case NONEXISTENT_FILE:
-            printf("Error: the file you tried to download does not exist on the server.\n");
+            printf("\nError: the file you tried to download does not exist on the server.\n\n");
             return 0;
         default:
             return 1;
@@ -137,7 +137,7 @@ void send_message(res_inscription *i,char *data,int nbfil){
     if(!handle_codereq_error(codereq)){
         return;
     }
-    printf("\nMessage has been posted on the thread %d\n", ntohs(server_msg->numfil));
+    printf("\nMessage has been posted on the thread %d\n\n", ntohs(server_msg->numfil));
 }
 
 /**
@@ -411,7 +411,6 @@ void subscribe_to_thread(uint16_t thread_number) {
  * @param nbfil thread where the message is
  */
 void download_file(int nbfil){
-    printf("Creation of the first message from client to server\n");
     // create the message from the client to the server
     client_message *msg = malloc(sizeof(client_message));
     int port = allocate_port();
@@ -439,7 +438,7 @@ void download_file(int nbfil){
 
     char *serialized_msg = client_message_to_string(msg);
 
-    printf("sending the client message to server\n");
+    printf("\nSend download request to server\n");
     ssize_t ecrit = send(clientfd, serialized_msg, CLIENT_MESSAGE_SIZE + DATALEN_SIZE + sizeof(char) * (msg->datalen), 0);
 
     //free
@@ -453,7 +452,7 @@ void download_file(int nbfil){
     }
 
     // reception of the return server message (in TCP)
-    printf("\nReceive server message\n");
+    printf("Receipt of server answer\n\n");
     uint16_t server_msg[3];
     ssize_t recu = recv_bytes(clientfd,(char*) server_msg, SERVER_MESSAGE_SIZE);
 
@@ -498,7 +497,6 @@ void add_file(int nbfil) {
     msg->nb = htons(0);
     msg->numfil = htons(nbfil);
 
-    printf("Open and check the file\n");
     // we open the file to check that it exists
     FILE *file = NULL;
     long size_max = 1L << 25; // 2^25 octets
@@ -541,7 +539,7 @@ void add_file(int nbfil) {
 
     char *serialized_msg = client_message_to_string(msg);
 
-    printf("Send message to server\n");
+    printf("\nSend upload request to server\n");
     ssize_t ecrit = send(clientfd, serialized_msg, CLIENT_MESSAGE_SIZE + DATALEN_SIZE + sizeof(char) * (msg->datalen), 0);
 
     if (ecrit == (size_t) -1) {
@@ -553,7 +551,7 @@ void add_file(int nbfil) {
         goto error;
     }
 
-    printf("Receipt of server message\n");
+    printf("Receipt of server answer\n\n");
     // receive the server message
     uint16_t server_msg[3];
     ssize_t recu = recv_bytes(clientfd,(char*)server_msg, SERVER_MESSAGE_SIZE);
@@ -698,7 +696,7 @@ void run(){
                 print_prompt();
                 scanf("%s",pseudo);
                 if(strlen(pseudo)>10){
-                    printf("Error: The username must be 10 characters or less.\n");
+                    printf("\nError: The username must be 10 characters or less.\n\n");
                     break;
                 }
                 res_ins = inscription_client(pseudo);
