@@ -232,7 +232,7 @@ void add_message_to_fil(client_message *msg, uint16_t fil_number, int isFile) {
 void post_message(client_message *msg,int sock_client){
     uint16_t id = get_id_entete(msg->entete.val);
 
-    printf("Received message from user with id %d, to post to numfil %d\n",id,ntohs(msg->numfil));
+    printf("Received message from user with id %d, to post to the thread %d\n",id,ntohs(msg->numfil));
 
     uint16_t numfil=ntohs(msg->numfil);
 
@@ -277,7 +277,7 @@ size_t send_messages_from_fil(char *buffer,uint16_t numfil,size_t offset,uint16_
         if((offset+sizeof(uint8_t)*22+sizeof(uint8_t)*datalen)>BUFSIZ){
             ssize_t nboctet = send(sock_client, buffer,sizeof(char)*offset, 0);
             if(nboctet <= 0)perror("send n messages to client");
-            printf("Octets envoyés au client: %zu\n",nboctet);
+            // printf("Bytes sent to client: %zu\n",nboctet);
 
             free(buffer);
             buffer=malloc(sizeof(char)*BUFSIZ);
@@ -360,7 +360,7 @@ void request_threads_list(client_message *msg, int sock_client){
         if(offset!=0){
             ssize_t nboctet = send(sock_client, buffer,sizeof(char)*(offset), 0);
             if(nboctet <= 0) perror("send n messages to client");
-            printf("Octets envoyés au client: %zu\n",nboctet);
+            // printf("Bytes sent to client: %zu\n",nboctet);
         }
 
         free(buffer);
@@ -394,7 +394,7 @@ void request_threads_list(client_message *msg, int sock_client){
         if(offset!=0){
             ssize_t nboctet = send(sock_client, buffer,sizeof(char)*(offset), 0);
             if(nboctet <= 0) perror("send n messages to client");
-            printf("Octets envoyés au client: %zu\n",nboctet);
+            // printf("Bytes sent to client: %zu\n",nboctet);
         }
         free(buffer);
     }
@@ -444,6 +444,7 @@ void send_thread_notification(uint16_t fil_index) {
         if (sendto(sockfd, serialized_msg, serialized_msg_size, 0, (struct sockaddr *)&dest_addr, sizeof(dest_addr)) < 0) {
             perror("sendto");
         }
+        printf("Sent [%s] notification to thread %d.\n",current_message->msg->data, fil_index);
         if(updated_last_multicasted_message == NULL){
             updated_last_multicasted_message = current_message;
         }
@@ -467,7 +468,7 @@ void *send_notifications(){
             if(fils[i].head!=NULL && fils[i].head->msg!=NULL && fils[i].head != fils[i].last_multicasted_message
             && fils[i].subscribed>0){
                 // Send notifications for the thread
-                printf("Sending thread notifification to thread %d subscribers.\n",i);
+                printf("Sending thread notification to thread %d subscribers.\n",i);
                 send_thread_notification(i);
             }
         }
@@ -683,7 +684,7 @@ void *serve(void *arg){
 
     // We first get the header sent by the client
     ssize_t read = recv_bytes(sock_client,buffer,HEADER_SIZE);
-    printf("Octets reçus: %zd\n",read);
+    // printf("Bytes received: %zd\n",read);
     if(read<0){
         perror("recv server first header");
         exit(1);
@@ -706,7 +707,7 @@ void *serve(void *arg){
     }
 
     request_type codereq = get_codereq_entete(header);
-    printf("CODEREQ %d\n",codereq);
+    printf("CODEREQ %d request from client %d\n",codereq,id_client);
 
     if(codereq == REGISTER){
         buffer = malloc(PSEUDO_SIZE);
@@ -731,7 +732,7 @@ void *serve(void *arg){
         ssize_t len = CLIENT_MESSAGE_SIZE + DATALEN_SIZE - HEADER_SIZE;
         buffer = malloc(len);
         read = recv_bytes(sock_client,buffer,len);
-        printf("Octets reçus: %zd\n",read);
+        // printf("Bytes received: %zd\n",read);
         if(read<0){
             perror("recv client message in server");
             exit(1);
@@ -743,12 +744,12 @@ void *serve(void *arg){
         client_message *received_msg = string_to_client_message(buffer);
         received_msg->entete.val=header;
         uint8_t datalen = received_msg->datalen;
-        printf("Datalen: %d\n",datalen);
+        // printf("Datalen: %d\n",datalen);
 
         if(datalen != 0){
             buffer = malloc(sizeof(char)*datalen);
             read = recv_bytes(sock_client,buffer,datalen);
-            printf("Octets reçus: %zd\n",read);
+            // printf("Bytes received: %zd\n",read);
             if(read<0){
                 perror("recv data from client");
                 exit(1);
@@ -791,7 +792,6 @@ void *serve(void *arg){
                 break;
             case DOWNLOAD_FILE:
                 download_file(received_msg,sock_client,client_ip);
-                printf("on quitte le download file\n");
                 break;
             default:
                 perror("Server codereq selection");
